@@ -1,24 +1,17 @@
-//
-//  ContentView.swift
-//  Tikit
-//
-//  Created by Mauricio Ampuero on 30/8/25.
-//
-
 import SwiftUI
 
 struct ContentView: View {
+    @EnvironmentObject var session: SessionManager
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        if session.isLoggedIn {
+            MainView()
+        } else {
+            LoginView()
         }
-        .padding()
     }
 }
 
 #Preview {
-    ContentView()
+    ContentView().environmentObject(SessionManager())
 }
