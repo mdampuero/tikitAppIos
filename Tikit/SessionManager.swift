@@ -4,23 +4,27 @@ import GoogleSignIn
 struct AuthResponse: Codable {
     let token: String
     let refreshToken: String
+    let user: UserProfile?
 
     enum CodingKeys: String, CodingKey {
         case token
         case refreshToken = "refresh_token"
+        case user
     }
 }
 
 struct UserProfile: Codable {
-    let firstName: String
-    let lastName: String
-    let email: String
-
-    enum CodingKeys: String, CodingKey {
-        case firstName = "name"
-        case lastName = "last_name"
-        case email
-    }
+    let id: Int?
+    let firstName: String?
+    let lastName: String?
+    let email: String?
+    let phone: String?
+    let company: String?
+    let position: String?
+    let country: String?
+    let state: String?
+    let role: String?
+    let imageUrl: String?
 }
 
 class SessionManager: ObservableObject {
@@ -76,7 +80,14 @@ class SessionManager: ObservableObject {
                 UserDefaults.standard.set(auth.token, forKey: tokenKey)
                 UserDefaults.standard.set(auth.refreshToken, forKey: refreshTokenKey)
                 isLoggedIn = true
-                await fetchUserProfile()
+                if let profile = auth.user {
+                    user = profile
+                    if let encoded = try? JSONEncoder().encode(profile) {
+                        UserDefaults.standard.set(encoded, forKey: userKey)
+                    }
+                } else {
+                    await fetchUserProfile()
+                }
                 return nil
             } else {
                 if let apiError = try? JSONDecoder().decode(APIErrorResponse.self, from: data) {
@@ -149,7 +160,14 @@ class SessionManager: ObservableObject {
             UserDefaults.standard.set(auth.token, forKey: tokenKey)
             UserDefaults.standard.set(auth.refreshToken, forKey: refreshTokenKey)
             isLoggedIn = true
-            await fetchUserProfile()
+            if let profile = auth.user {
+                user = profile
+                if let encoded = try? JSONEncoder().encode(profile) {
+                    UserDefaults.standard.set(encoded, forKey: userKey)
+                }
+            } else {
+                await fetchUserProfile()
+            }
             return nil
         } catch {
             return error.localizedDescription
