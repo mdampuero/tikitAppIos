@@ -5,7 +5,7 @@ struct MainView: View {
         TabView {
             HomeView()
                 .tabItem {
-                    Label("Home", systemImage: "house")
+                    Label("Eventos", systemImage: "list.bullet")
                 }
             ProfileView()
                 .tabItem {
