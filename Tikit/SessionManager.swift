@@ -129,4 +129,13 @@ class SessionManager: ObservableObject {
             return error.localizedDescription
         }
     }
+
+    @MainActor
+    func logout() {
+        token = nil
+        refreshToken = nil
+        UserDefaults.standard.removeObject(forKey: tokenKey)
+        UserDefaults.standard.removeObject(forKey: refreshTokenKey)
+        isLoggedIn = false
+    }
 }
