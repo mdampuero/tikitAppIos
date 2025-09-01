@@ -4,6 +4,11 @@ import GoogleSignIn
 struct AuthResponse: Codable {
     let token: String
     let refreshToken: String
+
+    enum CodingKeys: String, CodingKey {
+        case token
+        case refreshToken = "refresh_token"
+    }
 }
 
 class SessionManager: ObservableObject {
@@ -30,6 +35,12 @@ class SessionManager: ObservableObject {
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse {
+                print("Login status: \(http.statusCode)")
+            }
+            if let bodyString = String(data: data, encoding: .utf8) {
+                print("Login response: \(bodyString)")
+            }
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 return "Error del servidor"
             }
@@ -41,7 +52,34 @@ class SessionManager: ObservableObject {
             isLoggedIn = true
             return nil
         } catch {
+            print("Login error: \(error.localizedDescription)")
             return error.localizedDescription
+        }
+    }
+
+    /// Refresh the access token using the stored refresh token.
+    @MainActor
+    func refreshAuthToken() async -> Bool {
+        guard let refreshToken = refreshToken,
+              let url = URL(string: "https://tikit.cl/api/auth/refresh") else { return false }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body = ["refresh_token": refreshToken]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                return false
+            }
+            let auth = try JSONDecoder().decode(AuthResponse.self, from: data)
+            token = auth.token
+            self.refreshToken = auth.refreshToken
+            UserDefaults.standard.set(auth.token, forKey: tokenKey)
+            UserDefaults.standard.set(auth.refreshToken, forKey: refreshTokenKey)
+            return true
+        } catch {
+            return false
         }
     }
 
