@@ -44,42 +44,49 @@ struct Pagination: Codable {
     }
 }
 
-struct EventDetailResponse: Codable {
-    let data: EventDetail
-}
-
-struct EventDetail: Codable {
-    let id: Int
-    let name: String
+struct SessionsResponse: Codable {
     let sessions: [EventSession]
 }
 
 struct EventSession: Codable, Identifiable {
     let id: Int
-    let startsAt: String
-    let endsAt: String
+    let name: String
+    let description: String?
+    let createdAt: String?
+    let updatedAt: String?
+    let isDefault: Bool?
+    let startDate: String?
+    let startTime: String?
+    let endDate: String?
+    let endTime: String?
 
-    enum CodingKeys: String, CodingKey {
-        case id
-        case startsAt = "starts_at"
-        case endsAt = "ends_at"
-    }
+    var dateRangeFormatted: String? {
+        let inputFormatter = ISO8601DateFormatter()
+        let altFormatter = DateFormatter()
+        altFormatter.dateFormat = "yyyy-MM-dd"
+        let displayFormatter = DateFormatter()
+        displayFormatter.dateFormat = "dd/MM/yyyy"
 
-    var startDateFormatted: String {
-        let formatter = ISO8601DateFormatter()
-        guard let date = formatter.date(from: startsAt) else { return startsAt }
-        let display = DateFormatter()
-        display.dateStyle = .medium
-        display.timeStyle = .short
-        return display.string(from: date)
-    }
+        func formattedDate(from string: String?) -> String? {
+            guard let string = string else { return nil }
+            if let date = inputFormatter.date(from: string) {
+                return displayFormatter.string(from: date)
+            }
+            if let date = altFormatter.date(from: string) {
+                return displayFormatter.string(from: date)
+            }
+            return nil
+        }
 
-    var endDateFormatted: String {
-        let formatter = ISO8601DateFormatter()
-        guard let date = formatter.date(from: endsAt) else { return endsAt }
-        let display = DateFormatter()
-        display.dateStyle = .medium
-        display.timeStyle = .short
-        return display.string(from: date)
+        let start = formattedDate(from: startDate)
+        let end = formattedDate(from: endDate)
+        if let start = start, let end = end {
+            return "\(start) - \(end)"
+        } else if let start = start {
+            return start
+        } else if let end = end {
+            return end
+        }
+        return nil
     }
 }

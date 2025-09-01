@@ -73,11 +73,16 @@ struct SessionsView: View {
 
     var body: some View {
         List(sessions) { item in
-            VStack(alignment: .leading) {
-                Text("Inicio: \(item.startDateFormatted)")
-                Text("Fin: \(item.endDateFormatted)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+            NavigationLink(destination: ScanView(session: item)) {
+                VStack(alignment: .leading) {
+                    Text(item.name)
+                        .font(.headline)
+                    if let range = item.dateRangeFormatted {
+                        Text(range)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
             }
         }
         .navigationTitle("Sesiones")
@@ -100,8 +105,8 @@ struct SessionsView: View {
                 isLoading = false
                 return
             }
-            let result = try JSONDecoder().decode(EventDetailResponse.self, from: data)
-            sessions = result.data.sessions
+            let result = try JSONDecoder().decode(SessionsResponse.self, from: data)
+            sessions = result.sessions
         } catch {
             // handle error if needed
         }
