@@ -139,8 +139,13 @@ struct LoginView: View {
         passwordError = password.isEmpty ? "Contraseña requerida" : nil
         guard emailError == nil && passwordError == nil else { return }
         isLoading = true
-        if let error = await session.login(email: email, password: password) {
-            showToast(error)
+        if let apiError = await session.login(email: email, password: password) {
+            let fieldErrors = apiError.fieldErrors
+            emailError = fieldErrors["email"]
+            passwordError = fieldErrors["password"]
+            if fieldErrors.isEmpty {
+                showToast(apiError.message ?? "Error del servidor")
+            }
         }
         isLoading = false
     }
