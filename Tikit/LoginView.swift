@@ -129,7 +129,13 @@ struct LoginView: View {
 
     @MainActor
     func handleLogin() async {
-        emailError = email.isEmpty ? "Email requerido" : nil
+        if email.isEmpty {
+            emailError = "Email requerido"
+        } else if !isValidEmail(email) {
+            emailError = "Email inválido"
+        } else {
+            emailError = nil
+        }
         passwordError = password.isEmpty ? "Contraseña requerida" : nil
         guard emailError == nil && passwordError == nil else { return }
         isLoading = true
@@ -155,6 +161,12 @@ struct LoginView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
             toastMessage = nil
         }
+    }
+
+    private func isValidEmail(_ email: String) -> Bool {
+        let regex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"
+        let predicate = NSPredicate(format: "SELF MATCHES %@", regex)
+        return predicate.evaluate(with: email)
     }
 }
 

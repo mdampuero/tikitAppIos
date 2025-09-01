@@ -30,6 +30,12 @@ class SessionManager: ObservableObject {
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse {
+                print("Login status: \(http.statusCode)")
+            }
+            if let bodyString = String(data: data, encoding: .utf8) {
+                print("Login response: \(bodyString)")
+            }
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 return "Error del servidor"
             }
@@ -41,6 +47,7 @@ class SessionManager: ObservableObject {
             isLoggedIn = true
             return nil
         } catch {
+            print("Login error: \(error.localizedDescription)")
             return error.localizedDescription
         }
     }
