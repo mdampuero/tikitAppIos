@@ -1,17 +1,12 @@
-//
-//  TikitApp.swift
-//  Tikit
-//
-//  Created by Mauricio Ampuero on 30/8/25.
-//
-
 import SwiftUI
 
 @main
 struct TikitApp: App {
+    @StateObject var session = SessionManager()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView().environmentObject(session)
         }
     }
 }

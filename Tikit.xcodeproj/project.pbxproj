@@ -3,8 +3,12 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
-	objects = {
+        objectVersion = 77;
+        objects = {
+
+/* Begin PBXBuildFile section */
+               F07C2B1F2E3A4C5B00F0AAA2 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = F07C2B1E2E3A4C5B00F0AAA1 /* GoogleSignIn */; };
+/* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
 		74C1AAEA2E6356D100F05186 /* PBXContainerItemProxy */ = {
@@ -48,13 +52,14 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		74C1AAD52E6356CF00F05186 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
+                74C1AAD52E6356CF00F05186 /* Frameworks */ = {
+                        isa = PBXFrameworksBuildPhase;
+                        buildActionMask = 2147483647;
+                        files = (
+                                F07C2B1F2E3A4C5B00F0AAA2 /* GoogleSignIn in Frameworks */,
+                        );
+                        runOnlyForDeploymentPostprocessing = 0;
+                };
 		74C1AAE62E6356D100F05186 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -107,16 +112,17 @@
 			);
 			dependencies = (
 			);
-			fileSystemSynchronizedGroups = (
-				74C1AADA2E6356CF00F05186 /* Tikit */,
-			);
-			name = Tikit;
-			packageProductDependencies = (
-			);
-			productName = Tikit;
-			productReference = 74C1AAD82E6356CF00F05186 /* Tikit.app */;
-			productType = "com.apple.product-type.application";
-		};
+                        fileSystemSynchronizedGroups = (
+                                74C1AADA2E6356CF00F05186 /* Tikit */,
+                        );
+                        name = Tikit;
+                        packageProductDependencies = (
+                                F07C2B1E2E3A4C5B00F0AAA1 /* GoogleSignIn */,
+                        );
+                        productName = Tikit;
+                        productReference = 74C1AAD82E6356CF00F05186 /* Tikit.app */;
+                        productType = "com.apple.product-type.application";
+                };
 		74C1AAE82E6356D100F05186 /* TikitTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 74C1AB002E6356D100F05186 /* Build configuration list for PBXNativeTarget "TikitTests" */;
@@ -195,16 +201,19 @@
 			);
 			mainGroup = 74C1AACF2E6356CF00F05186;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
-			productRefGroup = 74C1AAD92E6356CF00F05186 /* Products */;
-			projectDirPath = "";
-			projectRoot = "";
-			targets = (
-				74C1AAD72E6356CF00F05186 /* Tikit */,
-				74C1AAE82E6356D100F05186 /* TikitTests */,
-				74C1AAF22E6356D100F05186 /* TikitUITests */,
-			);
-		};
+                        preferredProjectObjectVersion = 77;
+                        productRefGroup = 74C1AAD92E6356CF00F05186 /* Products */;
+                        packageReferences = (
+                                F07C2B1D2E3A4C5B00F0AAA0 /* XCRemoteSwiftPackageReference "google/GoogleSignIn-iOS" */,
+                        );
+                        projectDirPath = "";
+                        projectRoot = "";
+                        targets = (
+                                74C1AAD72E6356CF00F05186 /* Tikit */,
+                                74C1AAE82E6356D100F05186 /* TikitTests */,
+                                74C1AAF22E6356D100F05186 /* TikitUITests */,
+                        );
+                };
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
@@ -256,17 +265,25 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		74C1AAEB2E6356D100F05186 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 74C1AAD72E6356CF00F05186 /* Tikit */;
-			targetProxy = 74C1AAEA2E6356D100F05186 /* PBXContainerItemProxy */;
-		};
-		74C1AAF52E6356D100F05186 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 74C1AAD72E6356CF00F05186 /* Tikit */;
-			targetProxy = 74C1AAF42E6356D100F05186 /* PBXContainerItemProxy */;
-		};
+                74C1AAEB2E6356D100F05186 /* PBXTargetDependency */ = {
+                        isa = PBXTargetDependency;
+                        target = 74C1AAD72E6356CF00F05186 /* Tikit */;
+                        targetProxy = 74C1AAEA2E6356D100F05186 /* PBXContainerItemProxy */;
+                };
+                74C1AAF52E6356D100F05186 /* PBXTargetDependency */ = {
+                        isa = PBXTargetDependency;
+                        target = 74C1AAD72E6356CF00F05186 /* Tikit */;
+                        targetProxy = 74C1AAF42E6356D100F05186 /* PBXContainerItemProxy */;
+                };
 /* End PBXTargetDependency section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+               F07C2B1D2E3A4C5B00F0AAA0 /* XCRemoteSwiftPackageReference "google/GoogleSignIn-iOS" */ = {isa = XCRemoteSwiftPackageReference; repositoryURL = "https://github.com/google/GoogleSignIn-iOS.git"; requirement = { kind = upToNextMajorVersion; minimumVersion = 7.0.0; }; };
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+               F07C2B1E2E3A4C5B00F0AAA1 /* GoogleSignIn */ = {isa = XCSwiftPackageProductDependency; package = F07C2B1D2E3A4C5B00F0AAA0 /* XCRemoteSwiftPackageReference "google/GoogleSignIn-iOS" */; productName = GoogleSignIn; };
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin XCBuildConfiguration section */
 		74C1AAFB2E6356D100F05186 /* Debug */ = {
@@ -386,7 +403,7 @@
 		74C1AAFE2E6356D100F05186 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = "";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Tikit/Tikit.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -425,7 +442,7 @@
 		74C1AAFF2E6356D100F05186 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = "";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Tikit/Tikit.entitlements;
 				CODE_SIGN_STYLE = Automatic;
