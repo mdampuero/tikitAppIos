@@ -71,7 +71,7 @@ struct ScanView: View {
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         do {
             let (_, response) = try await URLSession.shared.data(for: request)
-            if let http = response as? HTTPURLResponse, http.statusCode == 200 {
+            if let http = response as? HTTPURLResponse, http.statusCode == 201 {
                 showResult(success: true, message: "Checkin correcto")
                 AudioServicesPlaySystemSound(1108)
             } else {
