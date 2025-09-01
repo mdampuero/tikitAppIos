@@ -25,37 +25,38 @@ struct LoginView: View {
                 Image(colorScheme == .dark ? "LogoDark" : "LogoLight")
                     .resizable()
                     .scaledToFit()
-                    .frame(width: 150, height: 150)
-                    Text("Bienvenido a Tikit")
-                        .font(.title2)
-                        .bold()
-                        .padding(.top, 16)
-                    Text("Tu administrador de eventos")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .padding(.top, 4)
-                    Spacer()
-                    VStack(spacing: 16) {
-                        Button(action: handleGoogle) {
-                            HStack(spacing: 8) {
-                                Image("GoogleIcon")
-                                    .resizable()
-                                    .frame(width: 20, height: 20)
-                                Text("Google")
-                                    .foregroundColor(.secondary)
-                            }
-                            .padding(.vertical, 8)
-                            .padding(.horizontal, 16)
-                        }
-                        .background(Color.clear)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 30)
-                                .stroke(Color.gray.opacity(0.5), lineWidth: 1)
-                        )
-                        .clipShape(Capsule())
-                        .disabled(isLoading)
+                    .frame(width: 180, height: 180)
+                Text("Bienvenido a Tikit")
+                    .font(.title2)
+                    .bold()
+                    .padding(.top, 16)
+                Text("Tu administrador de eventos")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .padding(.top, 4)
 
-                        VStack(alignment: .leading, spacing: 4) {
+                Button(action: handleGoogle) {
+                    HStack(spacing: 8) {
+                        Image("GoogleIcon")
+                            .resizable()
+                            .frame(width: 20, height: 20)
+                        Text("Google")
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 16)
+                }
+                .background(Color.clear)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 30)
+                        .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+                )
+                .clipShape(Capsule())
+                .disabled(isLoading)
+                .padding(.top, 24)
+
+                VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 4) {
                             TextField("", text: $email)
                                 .focused($focusedField, equals: .email)
                                 .keyboardType(.emailAddress)
@@ -122,11 +123,12 @@ struct LoginView: View {
                             .frame(maxWidth: .infinity)
                             .padding()
                             .background(Color.brandPrimary)
-                            .cornerRadius(8)
+                            .clipShape(Capsule())
                         }
                         .disabled(isLoading)
                     }
                     .padding(.horizontal, 40)
+                    .padding(.top, 24)
                     Spacer()
                 }
                 if let toast = toastMessage {
