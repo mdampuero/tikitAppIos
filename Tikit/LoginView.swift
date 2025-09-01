@@ -37,6 +37,26 @@ struct LoginView: View {
                         .padding(.top, 4)
                     Spacer()
                     VStack(spacing: 16) {
+                        Button(action: handleGoogle) {
+                            HStack(spacing: 8) {
+                                GoogleLogo()
+                                    .frame(width: 20, height: 20)
+                                Text("Iniciar con Google")
+                                    .foregroundColor(.black)
+                                    .font(.subheadline)
+                            }
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 16)
+                        }
+                        .frame(width: geo.size.width * 0.6)
+                        .background(Color.white)
+                        .cornerRadius(20)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(Color.gray.opacity(0.4), lineWidth: 1)
+                        )
+                        .disabled(isLoading)
+
                         VStack(alignment: .leading, spacing: 4) {
                             TextField("", text: $email)
                                 .focused($focusedField, equals: .email)
@@ -107,16 +127,6 @@ struct LoginView: View {
                             .cornerRadius(8)
                         }
                         .disabled(isLoading)
-
-                        Button(action: handleGoogle) {
-                            Text("Iniciar sesión con Google")
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.red)
-                                .cornerRadius(8)
-                        }
-                        .disabled(isLoading)
                     }
                     .padding(.horizontal, 40)
                     Spacer()
@@ -182,6 +192,48 @@ struct LoginView: View {
         let regex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"
         let predicate = NSPredicate(format: "SELF MATCHES %@", regex)
         return predicate.evaluate(with: email)
+    }
+}
+
+struct GoogleLogo: View {
+    var body: some View {
+        GeometryReader { geo in
+            let lineWidth = geo.size.width * 0.25
+            let radius = geo.size.width / 2
+            ZStack {
+                // Blue
+                Path { path in
+                    path.addArc(center: CGPoint(x: radius, y: radius), radius: radius - lineWidth/2, startAngle: .degrees(90), endAngle: .degrees(270), clockwise: false)
+                }
+                .stroke(Color(red: 66/255, green: 133/255, blue: 244/255), lineWidth: lineWidth)
+
+                // Red
+                Path { path in
+                    path.addArc(center: CGPoint(x: radius, y: radius), radius: radius - lineWidth/2, startAngle: .degrees(-45), endAngle: .degrees(90), clockwise: false)
+                }
+                .stroke(Color(red: 219/255, green: 68/255, blue: 55/255), lineWidth: lineWidth)
+
+                // Yellow
+                Path { path in
+                    path.addArc(center: CGPoint(x: radius, y: radius), radius: radius - lineWidth/2, startAngle: .degrees(-90), endAngle: .degrees(-45), clockwise: false)
+                }
+                .stroke(Color(red: 244/255, green: 180/255, blue: 0/255), lineWidth: lineWidth)
+
+                // Green
+                Path { path in
+                    path.addArc(center: CGPoint(x: radius, y: radius), radius: radius - lineWidth/2, startAngle: .degrees(270), endAngle: .degrees(360), clockwise: false)
+                }
+                .stroke(Color(red: 15/255, green: 157/255, blue: 88/255), lineWidth: lineWidth)
+
+                // Horizontal bar for G
+                Path { path in
+                    path.move(to: CGPoint(x: radius, y: radius))
+                    path.addLine(to: CGPoint(x: geo.size.width * 0.9, y: radius))
+                }
+                .stroke(Color(red: 66/255, green: 133/255, blue: 244/255), lineWidth: lineWidth)
+            }
+        }
+        .aspectRatio(1, contentMode: .fit)
     }
 }
 
