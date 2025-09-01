@@ -43,3 +43,43 @@ struct Pagination: Codable {
         case totalPages = "total_pages"
     }
 }
+
+struct EventDetailResponse: Codable {
+    let data: EventDetail
+}
+
+struct EventDetail: Codable {
+    let id: Int
+    let name: String
+    let sessions: [EventSession]
+}
+
+struct EventSession: Codable, Identifiable {
+    let id: Int
+    let startsAt: String
+    let endsAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case startsAt = "starts_at"
+        case endsAt = "ends_at"
+    }
+
+    var startDateFormatted: String {
+        let formatter = ISO8601DateFormatter()
+        guard let date = formatter.date(from: startsAt) else { return startsAt }
+        let display = DateFormatter()
+        display.dateStyle = .medium
+        display.timeStyle = .short
+        return display.string(from: date)
+    }
+
+    var endDateFormatted: String {
+        let formatter = ISO8601DateFormatter()
+        guard let date = formatter.date(from: endsAt) else { return endsAt }
+        let display = DateFormatter()
+        display.dateStyle = .medium
+        display.timeStyle = .short
+        return display.string(from: date)
+    }
+}
