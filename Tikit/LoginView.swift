@@ -143,7 +143,6 @@ struct LoginView: View {
                 }
             }
         }
-    }
 
     @MainActor
     func handleLogin() async {
