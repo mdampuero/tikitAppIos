@@ -19,14 +19,13 @@ struct LoginView: View {
     }
 
     var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                VStack {
-                    Spacer().frame(height: geo.size.height * 0.25)
-                    Image(colorScheme == .dark ? "LogoDark" : "LogoLight")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: geo.size.width * 0.5)
+        ZStack {
+            VStack {
+                Spacer().frame(height: 80)
+                Image(colorScheme == .dark ? "LogoDark" : "LogoLight")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 150, height: 150)
                     Text("Bienvenido a Tikit")
                         .font(.title2)
                         .bold()
@@ -37,6 +36,25 @@ struct LoginView: View {
                         .padding(.top, 4)
                     Spacer()
                     VStack(spacing: 16) {
+                        Button(action: handleGoogle) {
+                            HStack(spacing: 8) {
+                                Image("GoogleIcon")
+                                    .resizable()
+                                    .frame(width: 20, height: 20)
+                                Text("Google")
+                                    .foregroundColor(.white)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                        }
+                        .background(Color.clear)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 30)
+                                .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+                        )
+                        .clipShape(Capsule())
+                        .disabled(isLoading)
+
                         VStack(alignment: .leading, spacing: 4) {
                             TextField("", text: $email)
                                 .focused($focusedField, equals: .email)
@@ -105,16 +123,6 @@ struct LoginView: View {
                             .padding()
                             .background(Color.brandPrimary)
                             .cornerRadius(8)
-                        }
-                        .disabled(isLoading)
-
-                        Button(action: handleGoogle) {
-                            Text("Iniciar sesión con Google")
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.red)
-                                .cornerRadius(8)
                         }
                         .disabled(isLoading)
                     }
