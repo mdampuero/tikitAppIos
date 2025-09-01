@@ -19,25 +19,44 @@ struct LoginView: View {
     }
 
     var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                VStack {
-                    Spacer().frame(height: geo.size.height * 0.25)
-                    Image(colorScheme == .dark ? "LogoDark" : "LogoLight")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: geo.size.width * 0.5)
-                    Text("Bienvenido a Tikit")
-                        .font(.title2)
-                        .bold()
-                        .padding(.top, 16)
-                    Text("Tu administrador de eventos")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .padding(.top, 4)
-                    Spacer()
-                    VStack(spacing: 16) {
-                        VStack(alignment: .leading, spacing: 4) {
+        ZStack {
+            VStack {
+                Spacer().frame(height: 80)
+                Image(colorScheme == .dark ? "LogoDark" : "LogoLight")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 180, height: 180)
+                Text("Bienvenido a Tikit")
+                    .font(.title2)
+                    .bold()
+                    .padding(.top, 16)
+                Text("Tu administrador de eventos")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .padding(.top, 4)
+
+                Button(action: handleGoogle) {
+                    HStack(spacing: 8) {
+                        Image("GoogleIcon")
+                            .resizable()
+                            .frame(width: 20, height: 20)
+                        Text("Google")
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 16)
+                }
+                .background(Color.clear)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 30)
+                        .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+                )
+                .clipShape(Capsule())
+                .disabled(isLoading)
+                .padding(.top, 24)
+
+                VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 4) {
                             TextField("", text: $email)
                                 .focused($focusedField, equals: .email)
                                 .keyboardType(.emailAddress)
@@ -104,21 +123,13 @@ struct LoginView: View {
                             .frame(maxWidth: .infinity)
                             .padding()
                             .background(Color.brandPrimary)
-                            .cornerRadius(8)
+                            .clipShape(Capsule())
                         }
-                        .disabled(isLoading)
-
-                        Button(action: handleGoogle) {
-                            Text("Iniciar sesión con Google")
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color.red)
-                                .cornerRadius(8)
-                        }
+                        .padding(.top, 8)
                         .disabled(isLoading)
                     }
                     .padding(.horizontal, 40)
+                    .padding(.top, 24)
                     Spacer()
                 }
                 if let toast = toastMessage {
@@ -135,7 +146,6 @@ struct LoginView: View {
                 }
             }
         }
-    }
 
     @MainActor
     func handleLogin() async {
