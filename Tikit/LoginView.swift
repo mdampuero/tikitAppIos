@@ -42,10 +42,10 @@ struct LoginView: View {
                                     .resizable()
                                     .frame(width: 20, height: 20)
                                 Text("Google")
-                                    .foregroundColor(.white)
+                                    .foregroundColor(.secondary)
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding()
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 16)
                         }
                         .background(Color.clear)
                         .overlay(
