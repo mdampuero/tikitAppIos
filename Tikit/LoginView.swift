@@ -125,6 +125,7 @@ struct LoginView: View {
                             .background(Color.brandPrimary)
                             .clipShape(Capsule())
                         }
+                        .padding(.top, 8)
                         .disabled(isLoading)
                     }
                     .padding(.horizontal, 40)
