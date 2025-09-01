@@ -61,14 +61,31 @@ struct EventSession: Codable, Identifiable {
     let endTime: String?
 
     var dateRangeFormatted: String? {
-        let startComponents = [startDate, startTime].compactMap { $0 }.joined(separator: " ")
-        let endComponents = [endDate, endTime].compactMap { $0 }.joined(separator: " ")
-        if !startComponents.isEmpty && !endComponents.isEmpty {
-            return "\(startComponents) - \(endComponents)"
-        } else if !startComponents.isEmpty {
-            return startComponents
-        } else if !endComponents.isEmpty {
-            return endComponents
+        let inputFormatter = ISO8601DateFormatter()
+        let altFormatter = DateFormatter()
+        altFormatter.dateFormat = "yyyy-MM-dd"
+        let displayFormatter = DateFormatter()
+        displayFormatter.dateFormat = "dd/MM/yyyy"
+
+        func formattedDate(from string: String?) -> String? {
+            guard let string = string else { return nil }
+            if let date = inputFormatter.date(from: string) {
+                return displayFormatter.string(from: date)
+            }
+            if let date = altFormatter.date(from: string) {
+                return displayFormatter.string(from: date)
+            }
+            return nil
+        }
+
+        let start = formattedDate(from: startDate)
+        let end = formattedDate(from: endDate)
+        if let start = start, let end = end {
+            return "\(start) - \(end)"
+        } else if let start = start {
+            return start
+        } else if let end = end {
+            return end
         }
         return nil
     }
