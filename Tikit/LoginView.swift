@@ -101,7 +101,7 @@ struct LoginView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.blue)
+                        .background(Color.brandPrimary)
                         .foregroundColor(.white)
                         .cornerRadius(8)
                         .disabled(isLoading)
