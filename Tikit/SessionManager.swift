@@ -45,6 +45,32 @@ class SessionManager: ObservableObject {
         }
     }
 
+    /// Refresh the access token using the stored refresh token.
+    @MainActor
+    func refreshAuthToken() async -> Bool {
+        guard let refreshToken = refreshToken,
+              let url = URL(string: "https://tikit.cl/api/auth/refresh") else { return false }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body = ["refresh_token": refreshToken]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                return false
+            }
+            let auth = try JSONDecoder().decode(AuthResponse.self, from: data)
+            token = auth.token
+            self.refreshToken = auth.refreshToken
+            UserDefaults.standard.set(auth.token, forKey: tokenKey)
+            UserDefaults.standard.set(auth.refreshToken, forKey: refreshTokenKey)
+            return true
+        } catch {
+            return false
+        }
+    }
+
     @MainActor
     func loginWithGoogle(presenting: UIViewController) async -> String? {
         GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: "331974773758-ms75sk3bv25vkfm0a7qao8ft0ur1kvep.apps.googleusercontent.com")

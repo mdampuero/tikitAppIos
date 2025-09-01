@@ -10,6 +10,13 @@ struct LoginView: View {
     @State private var emailError: String?
     @State private var passwordError: String?
     @State private var toastMessage: String?
+    @State private var isLoading = false
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable {
+        case email
+        case password
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -22,40 +29,74 @@ struct LoginView: View {
                         .frame(width: geo.size.width * 0.5)
                     Spacer()
                     VStack(spacing: 16) {
-                        TextField("Email", text: $email)
-                            .keyboardType(.emailAddress)
-                            .autocapitalization(.none)
+                        VStack(alignment: .leading, spacing: 4) {
+                            TextField("", text: $email)
+                                .focused($focusedField, equals: .email)
+                                .keyboardType(.emailAddress)
+                                .autocapitalization(.none)
+                                .placeholder(when: email.isEmpty && focusedField != .email) {
+                                    Text("Email").foregroundColor(.gray)
+                                }
+                                .padding()
+                                .background(Color(.secondarySystemBackground))
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(emailError != nil && focusedField != .email ? Color.red : Color.clear, lineWidth: 1)
+                                )
+                                .disabled(isLoading)
+                            if let emailError = emailError {
+                                Text(emailError)
+                                    .foregroundColor(.red)
+                                    .font(.footnote)
+                            }
+                        }
+                        VStack(alignment: .leading, spacing: 4) {
+                            ZStack(alignment: .trailing) {
+                                if showPassword {
+                                    TextField("", text: $password)
+                                        .focused($focusedField, equals: .password)
+                                } else {
+                                    SecureField("", text: $password)
+                                        .focused($focusedField, equals: .password)
+                                }
+                                Button(action: { showPassword.toggle() }) {
+                                    Image(systemName: showPassword ? "eye.slash" : "eye")
+                                        .foregroundColor(.gray)
+                                }
+                                .padding(.trailing, 8)
+                            }
+                            .placeholder(when: password.isEmpty && focusedField != .password) {
+                                Text("Contraseña").foregroundColor(.gray)
+                                    .padding(.leading, 4)
+                            }
                             .padding()
                             .background(Color(.secondarySystemBackground))
                             .cornerRadius(8)
-                        if let emailError = emailError {
-                            Text(emailError).foregroundColor(.red).font(.footnote)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(passwordError != nil && focusedField != .password ? Color.red : Color.clear, lineWidth: 1)
+                            )
+                            .disabled(isLoading)
+                            if let passwordError = passwordError {
+                                Text(passwordError)
+                                    .foregroundColor(.red)
+                                    .font(.footnote)
+                            }
                         }
-                        HStack {
-                            if showPassword {
-                                TextField("Contraseña", text: $password)
+                        Button(action: { Task { await handleLogin() } }) {
+                            if isLoading {
+                                ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
                             } else {
-                                SecureField("Contraseña", text: $password)
+                                Text("Iniciar sesión")
                             }
-                            Button(action: { showPassword.toggle() }) {
-                                Image(systemName: showPassword ? "eye.slash" : "eye")
-                                    .foregroundColor(.gray)
-                            }
-                        }
-                        .padding()
-                        .background(Color(.secondarySystemBackground))
-                        .cornerRadius(8)
-                        if let passwordError = passwordError {
-                            Text(passwordError).foregroundColor(.red).font(.footnote)
-                        }
-                        Button("Iniciar sesión") {
-                            Task { await handleLogin() }
                         }
                         .frame(maxWidth: .infinity)
                         .padding()
                         .background(Color.blue)
                         .foregroundColor(.white)
                         .cornerRadius(8)
+                        .disabled(isLoading)
 
                         Button("Iniciar sesión con Google") {
                             handleGoogle()
@@ -65,8 +106,9 @@ struct LoginView: View {
                         .background(Color.red)
                         .foregroundColor(.white)
                         .cornerRadius(8)
+                        .disabled(isLoading)
                     }
-                    .padding()
+                    .padding(.horizontal, 40)
                     Spacer()
                 }
                 if let toast = toastMessage {
@@ -85,13 +127,16 @@ struct LoginView: View {
         }
     }
 
+    @MainActor
     func handleLogin() async {
         emailError = email.isEmpty ? "Email requerido" : nil
         passwordError = password.isEmpty ? "Contraseña requerida" : nil
         guard emailError == nil && passwordError == nil else { return }
+        isLoading = true
         if let error = await session.login(email: email, password: password) {
             showToast(error)
         }
+        isLoading = false
     }
 
     func handleGoogle() {
@@ -109,6 +154,15 @@ struct LoginView: View {
         toastMessage = message
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
             toastMessage = nil
+        }
+    }
+}
+
+extension View {
+    func placeholder<Content: View>(when shouldShow: Bool, alignment: Alignment = .leading, @ViewBuilder placeholder: () -> Content) -> some View {
+        ZStack(alignment: alignment) {
+            placeholder().opacity(shouldShow ? 1 : 0)
+            self
         }
     }
 }
