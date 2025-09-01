@@ -13,9 +13,9 @@ struct ProfileView: View {
                     .padding(.top, 40)
                 Form {
                     Section {
-                        profileRow(title: "Nombre", value: "John")
-                        profileRow(title: "Apellido", value: "Doe")
-                        profileRow(title: "Email", value: "john.doe@example.com")
+                        profileRow(title: "Nombre", value: session.user?.firstName ?? "")
+                        profileRow(title: "Apellido", value: session.user?.lastName ?? "")
+                        profileRow(title: "Email", value: session.user?.email ?? "")
                     }
                 }
                 .frame(maxHeight: 250)

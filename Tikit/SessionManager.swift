@@ -11,18 +11,41 @@ struct AuthResponse: Codable {
     }
 }
 
+struct UserProfile: Codable {
+    let firstName: String
+    let lastName: String
+    let email: String
+
+    enum CodingKeys: String, CodingKey {
+        case firstName = "name"
+        case lastName = "last_name"
+        case email
+    }
+}
+
 class SessionManager: ObservableObject {
     @Published var isLoggedIn: Bool = false
     @Published var token: String?
     @Published var refreshToken: String?
+    @Published var user: UserProfile?
 
     private let tokenKey = "token"
     private let refreshTokenKey = "refreshToken"
+    private let userKey = "userProfile"
 
     init() {
         token = UserDefaults.standard.string(forKey: tokenKey)
         refreshToken = UserDefaults.standard.string(forKey: refreshTokenKey)
+        if let data = UserDefaults.standard.data(forKey: userKey),
+           let storedUser = try? JSONDecoder().decode(UserProfile.self, from: data) {
+            user = storedUser
+        }
         isLoggedIn = token != nil
+        if isLoggedIn {
+            Task {
+                _ = await refreshAuthToken()
+            }
+        }
     }
 
     @MainActor
@@ -53,6 +76,7 @@ class SessionManager: ObservableObject {
                 UserDefaults.standard.set(auth.token, forKey: tokenKey)
                 UserDefaults.standard.set(auth.refreshToken, forKey: refreshTokenKey)
                 isLoggedIn = true
+                await fetchUserProfile()
                 return nil
             } else {
                 if let apiError = try? JSONDecoder().decode(APIErrorResponse.self, from: data) {
@@ -87,6 +111,7 @@ class SessionManager: ObservableObject {
             self.refreshToken = auth.refreshToken
             UserDefaults.standard.set(auth.token, forKey: tokenKey)
             UserDefaults.standard.set(auth.refreshToken, forKey: refreshTokenKey)
+            await fetchUserProfile()
             return true
         } catch {
             return false
@@ -124,6 +149,7 @@ class SessionManager: ObservableObject {
             UserDefaults.standard.set(auth.token, forKey: tokenKey)
             UserDefaults.standard.set(auth.refreshToken, forKey: refreshTokenKey)
             isLoggedIn = true
+            await fetchUserProfile()
             return nil
         } catch {
             return error.localizedDescription
@@ -134,8 +160,30 @@ class SessionManager: ObservableObject {
     func logout() {
         token = nil
         refreshToken = nil
+        user = nil
         UserDefaults.standard.removeObject(forKey: tokenKey)
         UserDefaults.standard.removeObject(forKey: refreshTokenKey)
+        UserDefaults.standard.removeObject(forKey: userKey)
         isLoggedIn = false
+    }
+
+    @MainActor
+    func fetchUserProfile() async {
+        guard let token = token,
+              let url = URL(string: "https://tikit.cl/api/auth/me") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return }
+            let profile = try JSONDecoder().decode(UserProfile.self, from: data)
+            user = profile
+            if let encoded = try? JSONEncoder().encode(profile) {
+                UserDefaults.standard.set(encoded, forKey: userKey)
+            }
+        } catch {
+            print("Profile error: \(error.localizedDescription)")
+        }
     }
 }
