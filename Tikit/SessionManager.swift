@@ -26,8 +26,10 @@ class SessionManager: ObservableObject {
     }
 
     @MainActor
-    func login(email: String, password: String) async -> String? {
-        guard let url = URL(string: "https://tikit.cl/api/auth/login") else { return "URL inválida" }
+    func login(email: String, password: String) async -> APIErrorResponse? {
+        guard let url = URL(string: "https://tikit.cl/api/auth/login") else {
+            return APIErrorResponse(message: "URL inválida", errors: nil)
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -41,19 +43,27 @@ class SessionManager: ObservableObject {
             if let bodyString = String(data: data, encoding: .utf8) {
                 print("Login response: \(bodyString)")
             }
-            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-                return "Error del servidor"
+            guard let http = response as? HTTPURLResponse else {
+                return APIErrorResponse(message: "Error del servidor", errors: nil)
             }
-            let auth = try JSONDecoder().decode(AuthResponse.self, from: data)
-            token = auth.token
-            refreshToken = auth.refreshToken
-            UserDefaults.standard.set(auth.token, forKey: tokenKey)
-            UserDefaults.standard.set(auth.refreshToken, forKey: refreshTokenKey)
-            isLoggedIn = true
-            return nil
+            if http.statusCode == 200 {
+                let auth = try JSONDecoder().decode(AuthResponse.self, from: data)
+                token = auth.token
+                refreshToken = auth.refreshToken
+                UserDefaults.standard.set(auth.token, forKey: tokenKey)
+                UserDefaults.standard.set(auth.refreshToken, forKey: refreshTokenKey)
+                isLoggedIn = true
+                return nil
+            } else {
+                if let apiError = try? JSONDecoder().decode(APIErrorResponse.self, from: data) {
+                    return apiError
+                } else {
+                    return APIErrorResponse(message: "Error del servidor", errors: nil)
+                }
+            }
         } catch {
             print("Login error: \(error.localizedDescription)")
-            return error.localizedDescription
+            return APIErrorResponse(message: error.localizedDescription, errors: nil)
         }
     }
 
