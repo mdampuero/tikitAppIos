@@ -27,6 +27,14 @@ struct LoginView: View {
                         .resizable()
                         .scaledToFit()
                         .frame(width: geo.size.width * 0.5)
+                    Text("Bienvenido a Tikit")
+                        .font(.title2)
+                        .bold()
+                        .padding(.top, 16)
+                    Text("Tu administrador de eventos")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .padding(.top, 4)
                     Spacer()
                     VStack(spacing: 16) {
                         VStack(alignment: .leading, spacing: 4) {
