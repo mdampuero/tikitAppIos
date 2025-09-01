@@ -93,27 +93,29 @@ struct LoginView: View {
                             }
                         }
                         Button(action: { Task { await handleLogin() } }) {
-                            if isLoading {
-                                ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            } else {
-                                Text("Iniciar sesión")
+                            Group {
+                                if isLoading {
+                                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                } else {
+                                    Text("Iniciar sesión")
+                                }
                             }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.brandPrimary)
+                            .cornerRadius(8)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.brandPrimary)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
                         .disabled(isLoading)
 
-                        Button("Iniciar sesión con Google") {
-                            handleGoogle()
+                        Button(action: handleGoogle) {
+                            Text("Iniciar sesión con Google")
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.red)
+                                .cornerRadius(8)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.red)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
                         .disabled(isLoading)
                     }
                     .padding(.horizontal, 40)
