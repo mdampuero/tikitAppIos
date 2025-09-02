@@ -171,6 +171,7 @@ struct LoginView: View {
     }
 
     func handleGoogle() {
+        UIApplication.shared.dismissKeyboard()
         guard let root = UIApplication.shared.connectedScenes
             .compactMap({ ($0 as? UIWindowScene)?.keyWindow })
             .first?.rootViewController else { return }
