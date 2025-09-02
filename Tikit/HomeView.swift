@@ -31,7 +31,7 @@ struct HomeView: View {
                     }
                     .onAppear {
                         Task {
-                            await viewModel.loadMoreIfNeeded(currentItem: event, token: session.token)
+                            await viewModel.loadMoreIfNeeded(currentItem: event, session: session)
                         }
                     }
                 }
@@ -44,7 +44,7 @@ struct HomeView: View {
             .navigationTitle("Eventos")
             .onAppear {
                 Task {
-                    await viewModel.loadMoreIfNeeded(currentItem: nil, token: session.token)
+                    await viewModel.loadMoreIfNeeded(currentItem: nil, session: session)
                 }
             }
         }
