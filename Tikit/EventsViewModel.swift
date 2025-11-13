@@ -24,6 +24,9 @@ class EventsViewModel: ObservableObject {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
+            if let jsonString = String(data: data, encoding: .utf8) {
+                print("fetchEvents response: \(jsonString)")
+            }
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 isLoading = false
                 return
