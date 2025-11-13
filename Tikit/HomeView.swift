@@ -42,9 +42,12 @@ struct HomeView: View {
             .listStyle(.plain)
             .searchable(text: $searchText)
             .navigationTitle("Eventos")
+            .refreshable {
+                await viewModel.refresh(token: session.token)
+            }
             .onAppear {
                 Task {
-                    await viewModel.loadMoreIfNeeded(currentItem: nil, token: session.token)
+                    await viewModel.refresh(token: session.token)
                 }
             }
         }
