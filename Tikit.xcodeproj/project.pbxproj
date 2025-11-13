@@ -404,8 +404,34 @@
 				DEVELOPMENT_TEAM = 3833W4TFK6;
 				ENABLE_HARDENED_RUNTIME = YES;
                                 ENABLE_PREVIEWS = YES;
-                                INFOPLIST_FILE = Tikit/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+                                GENERATE_INFOPLIST_FILE = YES;
+                                INFOPLIST_KEY_CFBundleURLTypes = (
+                                        {
+                                                CFBundleTypeRole = Editor;
+                                                CFBundleURLSchemes = (
+                                                        com.googleusercontent.apps.331974773758-ms75sk3bv25vkfm0a7qao8ft0ur1kvep,
+                                                );
+                                        },
+                                );
+                                INFOPLIST_KEY_NSCameraUsageDescription = "Se requiere acceso a la cámara para escanear códigos QR de check-in.";
+                                INFOPLIST_KEY_UIApplicationSceneManifest = {
+                                        UIApplicationSupportsMultipleScenes = NO;
+                                };
+                                INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+                                INFOPLIST_KEY_UILaunchScreen = {};
+                                INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDefault;
+                                INFOPLIST_KEY_UISupportedInterfaceOrientations = (
+                                        UIInterfaceOrientationPortrait,
+                                        UIInterfaceOrientationLandscapeLeft,
+                                        UIInterfaceOrientationLandscapeRight,
+                                );
+                                "INFOPLIST_KEY_UISupportedInterfaceOrientations~ipad" = (
+                                        UIInterfaceOrientationPortrait,
+                                        UIInterfaceOrientationPortraitUpsideDown,
+                                        UIInterfaceOrientationLandscapeLeft,
+                                        UIInterfaceOrientationLandscapeRight,
+                                );
+                                IPHONEOS_DEPLOYMENT_TARGET = 18.2;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 15.2;
@@ -433,8 +459,34 @@
 				DEVELOPMENT_TEAM = 3833W4TFK6;
 				ENABLE_HARDENED_RUNTIME = YES;
                                 ENABLE_PREVIEWS = YES;
-                                INFOPLIST_FILE = Tikit/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+                                GENERATE_INFOPLIST_FILE = YES;
+                                INFOPLIST_KEY_CFBundleURLTypes = (
+                                        {
+                                                CFBundleTypeRole = Editor;
+                                                CFBundleURLSchemes = (
+                                                        com.googleusercontent.apps.331974773758-ms75sk3bv25vkfm0a7qao8ft0ur1kvep,
+                                                );
+                                        },
+                                );
+                                INFOPLIST_KEY_NSCameraUsageDescription = "Se requiere acceso a la cámara para escanear códigos QR de check-in.";
+                                INFOPLIST_KEY_UIApplicationSceneManifest = {
+                                        UIApplicationSupportsMultipleScenes = NO;
+                                };
+                                INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+                                INFOPLIST_KEY_UILaunchScreen = {};
+                                INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDefault;
+                                INFOPLIST_KEY_UISupportedInterfaceOrientations = (
+                                        UIInterfaceOrientationPortrait,
+                                        UIInterfaceOrientationLandscapeLeft,
+                                        UIInterfaceOrientationLandscapeRight,
+                                );
+                                "INFOPLIST_KEY_UISupportedInterfaceOrientations~ipad" = (
+                                        UIInterfaceOrientationPortrait,
+                                        UIInterfaceOrientationPortraitUpsideDown,
+                                        UIInterfaceOrientationLandscapeLeft,
+                                        UIInterfaceOrientationLandscapeRight,
+                                );
+                                IPHONEOS_DEPLOYMENT_TARGET = 18.2;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 15.2;
