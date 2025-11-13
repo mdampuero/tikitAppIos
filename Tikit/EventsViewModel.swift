@@ -14,6 +14,14 @@ class EventsViewModel: ObservableObject {
         }
     }
 
+    func refresh(token: String?) async {
+        guard let token = token else { return }
+        currentPage = 1
+        totalPages = 1
+        events = []
+        await fetchEvents(token: token)
+    }
+
     private func fetchEvents(token: String) async {
         guard !isLoading, currentPage <= totalPages else { return }
         isLoading = true
