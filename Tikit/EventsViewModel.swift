@@ -25,7 +25,7 @@ class EventsViewModel: ObservableObject {
     private func fetchEvents(token: String) async {
         guard !isLoading, currentPage <= totalPages else { return }
         isLoading = true
-        let urlString = "https://tikit.cl/api/events?page=\(currentPage)&query=&limit=10&order=id:DESC&filter=[]"
+        let urlString = "\(APIConstants.baseURL)events?page=\(currentPage)&query=&limit=10&order=id:DESC&filter=[]"
         guard let url = URL(string: urlString) else { isLoading = false; return }
         var request = URLRequest(url: url)
         request.httpMethod = "GET"

@@ -97,7 +97,7 @@ struct SessionsView: View {
     private func fetchSessions() async {
         guard let token = session.token, !isLoading else { return }
         isLoading = true
-        let urlString = "https://tikit.cl/api/events/\(event.id)"
+        let urlString = "\(APIConstants.baseURL)events/\(event.id)"
         guard let url = URL(string: urlString) else { isLoading = false; return }
         var request = URLRequest(url: url)
         request.httpMethod = "GET"

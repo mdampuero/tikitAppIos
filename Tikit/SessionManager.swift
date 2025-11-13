@@ -54,7 +54,7 @@ class SessionManager: ObservableObject {
 
     @MainActor
     func login(email: String, password: String) async -> APIErrorResponse? {
-        guard let url = URL(string: "https://tikit.cl/api/auth/login") else {
+        guard let url = URL(string: APIConstants.baseURL + "auth/login") else {
             return APIErrorResponse(message: "URL inválida", errors: nil)
         }
         var request = URLRequest(url: url)
@@ -106,7 +106,7 @@ class SessionManager: ObservableObject {
     @MainActor
     func refreshAuthToken() async -> Bool {
         guard let refreshToken = refreshToken,
-              let url = URL(string: "https://tikit.cl/api/auth/refresh") else { return false }
+              let url = URL(string: APIConstants.baseURL + "auth/refresh") else { return false }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -143,7 +143,7 @@ class SessionManager: ObservableObject {
 
     @MainActor
     private func socialLogin(token: String) async -> String? {
-        guard let url = URL(string: "https://tikit.cl/api/auth/social-login") else { return "URL inválida" }
+        guard let url = URL(string: APIConstants.baseURL + "auth/social-login") else { return "URL inválida" }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -188,7 +188,7 @@ class SessionManager: ObservableObject {
     @MainActor
     func fetchUserProfile() async {
         guard let token = token,
-              let url = URL(string: "https://tikit.cl/api/auth/me") else { return }
+              let url = URL(string: APIConstants.baseURL + "auth/me") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
