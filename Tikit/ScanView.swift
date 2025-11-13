@@ -84,7 +84,7 @@ struct ScanView: View {
             let decoder = JSONDecoder()
 
             switch http.statusCode {
-            case 200:
+            case 201:
                 if let checkin = try? decoder.decode(CheckinResponse.self, from: data) {
                     await MainActor.run {
                         AudioServicesPlaySystemSound(1108)
