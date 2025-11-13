@@ -29,8 +29,15 @@ struct ScanView: View {
                     .transition(.opacity)
             }
             if showResult {
-                ResultView(success: resultSuccess, message: resultMessage, checkin: latestCheckin)
-                    .transition(.scale)
+                ResultView(
+                    success: resultSuccess,
+                    message: resultMessage,
+                    checkin: latestCheckin,
+                    onDismiss: {
+                        withAnimation { showResult = false }
+                    }
+                )
+                .transition(.scale)
             }
         }
         .navigationTitle("Escanear")
@@ -65,7 +72,7 @@ struct ScanView: View {
             }
             return
         }
-        guard let url = URL(string: "https://tikit.cl/api/checkins/register") else { return }
+        guard let url = URL(string: APIConstants.baseURL + "checkins/register") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -126,9 +133,6 @@ struct ScanView: View {
         resultMessage = message
         latestCheckin = checkin
         withAnimation { showResult = true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            withAnimation { showResult = false }
-        }
     }
 }
 
@@ -150,6 +154,7 @@ struct ResultView: View {
     let success: Bool
     let message: String
     let checkin: CheckinResponse?
+    let onDismiss: () -> Void
 
     private var iconName: String { success ? "checkmark.circle.fill" : "xmark.octagon.fill" }
     private var color: Color { success ? .green : .red }
@@ -166,6 +171,15 @@ struct ResultView: View {
             if success, let checkin {
                 CheckinDetailView(checkin: checkin)
             }
+            Button("Aceptar") {
+                onDismiss()
+            }
+            .font(.headline)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Color.blue)
+            .foregroundColor(.white)
+            .cornerRadius(8)
         }
         .padding(40)
         .background(Color(.systemBackground))
