@@ -5,12 +5,11 @@ struct ScanView: View {
     let session: EventSession
     @EnvironmentObject var sessionManager: SessionManager
     @State private var isShowingScanner = false
-    @State private var showToast = false
-    @State private var toastMessage = ""
-    @State private var showResult = false
-    @State private var resultSuccess = false
-    @State private var resultMessage = ""
-    @State private var latestCheckin: CheckinResponse?
+    @State private var showAlert = false
+    @State private var alertTitle = ""
+    @State private var alertMessage = ""
+    @State private var alertCheckin: CheckinResponse?
+    @State private var isSuccess = false
 
     var body: some View {
         ZStack {
@@ -23,21 +22,6 @@ struct ScanView: View {
                     .foregroundColor(.blue)
                     .onTapGesture { isShowingScanner = true }
                 Spacer()
-            }
-            if showToast {
-                VStack { Spacer(); ToastView(message: toastMessage).padding(.bottom, 40) }
-                    .transition(.opacity)
-            }
-            if showResult {
-                ResultView(
-                    success: resultSuccess,
-                    message: resultMessage,
-                    checkin: latestCheckin,
-                    onDismiss: {
-                        withAnimation { showResult = false }
-                    }
-                )
-                .transition(.scale)
             }
         }
         .navigationTitle("Escanear")
@@ -52,64 +36,87 @@ struct ScanView: View {
                 }
             )
         }
+        .alert(alertTitle, isPresented: $showAlert) {
+            Button("Aceptar") {
+                showAlert = false
+            }
+            .keyboardShortcut(.defaultAction)
+        } message: {
+            if let checkin = alertCheckin {
+                Text(alertMessage + "\n\nNombre: \(checkin.guest.fullName)\nCorreo: \(checkin.guest.email)\nSesión: \(checkin.eventSession.name)\nMétodo: \(checkin.method)")
+            } else {
+                Text(alertMessage)
+            }
+        }
     }
 
     private func handleScan(_ code: String) {
-        // Intentar desencriptar el código
-        guard let decryptedCode = CryptoUtils.decrypt(code) else {
-            showToast(message: "Error al desencriptar el código QR")
-            return
-        }
-        
-        // El código desencriptado debe ser un ID numérico
-        guard let guestId = Int(decryptedCode) else {
-            showToast(message: "Código inválido")
-            return
-        }
-        Task { await register(guestId: guestId) }
+        print("DEBUG ScanView: Código QR escaneado: \(code)")
+        Task { await register(encryptedCode: code) }
     }
 
-    private func showToast(message: String) {
-        toastMessage = message
-        withAnimation { showToast = true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            withAnimation { showToast = false }
-        }
-    }
-
-    private func register(guestId: Int) async {
+    private func register(encryptedCode: String) async {
         guard let token = sessionManager.token else {
+            print("DEBUG: No token available")
             await MainActor.run {
                 showResult(success: false, message: "No se pudo hacer check-in", checkin: nil)
             }
             return
         }
-        guard let url = URL(string: APIConstants.baseURL + "checkins/register") else { return }
+        
+        print("DEBUG: Token disponible: \(token.prefix(20))...")
+        print("DEBUG: EventSession ID: \(session.id)")
+        print("DEBUG: Guest (encrypted): \(encryptedCode)")
+        
+        guard let url = URL(string: APIConstants.baseURL + "checkins/register") else {
+            print("DEBUG: URL inválida")
+            return
+        }
+        
+        print("DEBUG: URL: \(url)")
+        
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        let body: [String: Any] = ["eventSession": session.id, "guest": guestId]
+        
+        let body: [String: Any] = ["eventSession": session.id, "guest": encryptedCode]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        
+        if let bodyData = request.httpBody, let bodyString = String(data: bodyData, encoding: .utf8) {
+            print("DEBUG: Request body: \(bodyString)")
+        }
+        
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let bodyString = String(data: data, encoding: .utf8) {
+                print("DEBUG: Response body: \(bodyString)")
+            }
+            
             guard let http = response as? HTTPURLResponse else {
+                print("DEBUG: No HTTPURLResponse")
                 await MainActor.run {
                     showResult(success: false, message: "No se pudo hacer check-in", checkin: nil)
                 }
                 return
             }
 
+            print("DEBUG: Status code: \(http.statusCode)")
+            
             let decoder = JSONDecoder()
 
             switch http.statusCode {
             case 201:
+                print("DEBUG: Attempting to decode CheckinResponse")
                 if let checkin = try? decoder.decode(CheckinResponse.self, from: data) {
+                    print("DEBUG: CheckinResponse decoded successfully")
                     await MainActor.run {
                         AudioServicesPlaySystemSound(1108)
                         showResult(success: true, message: "Check-in correcto", checkin: checkin)
                     }
                 } else {
+                    print("DEBUG: Failed to decode CheckinResponse")
                     await MainActor.run {
                         showResult(success: true, message: "Check-in correcto", checkin: nil)
                     }
@@ -127,13 +134,16 @@ struct ScanView: View {
                     showResult(success: false, message: "Solicitud inválida. El registrante o la sesión no existen.", checkin: nil)
                 }
             default:
+                print("DEBUG: Decoding error response for status \(http.statusCode)")
                 let apiError = try? decoder.decode(CheckinAPIErrorResponse.self, from: data)
                 let message = apiError?.message ?? apiError?.error ?? "No se pudo hacer check-in"
+                print("DEBUG: Error message: \(message)")
                 await MainActor.run {
                     showResult(success: false, message: message, checkin: nil)
                 }
             }
         } catch {
+            print("DEBUG: Catch error: \(error.localizedDescription)")
             await MainActor.run {
                 showResult(success: false, message: "No se pudo hacer check-in", checkin: nil)
             }
@@ -141,95 +151,11 @@ struct ScanView: View {
     }
 
     private func showResult(success: Bool, message: String, checkin: CheckinResponse?) {
-        resultSuccess = success
-        resultMessage = message
-        latestCheckin = checkin
-        withAnimation { showResult = true }
-    }
-}
-
-struct ToastView: View {
-    let message: String
-
-    var body: some View {
-        Text(message)
-            .font(.subheadline)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(Color.black.opacity(0.8))
-            .foregroundColor(.white)
-            .cornerRadius(8)
-    }
-}
-
-struct ResultView: View {
-    let success: Bool
-    let message: String
-    let checkin: CheckinResponse?
-    let onDismiss: () -> Void
-
-    private var iconName: String { success ? "checkmark.circle.fill" : "xmark.octagon.fill" }
-    private var color: Color { success ? .green : .red }
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: iconName)
-                .resizable()
-                .frame(width: 60, height: 60)
-                .foregroundColor(color)
-            Text(message)
-                .font(.headline)
-                .multilineTextAlignment(.center)
-            if success, let checkin {
-                CheckinDetailView(checkin: checkin)
-            }
-            Button("Aceptar") {
-                onDismiss()
-            }
-            .font(.headline)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .background(Color.blue)
-            .foregroundColor(.white)
-            .cornerRadius(8)
-        }
-        .padding(40)
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(radius: 10)
-    }
-}
-
-struct CheckinDetailView: View {
-    let checkin: CheckinResponse
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            DetailRow(title: "Nombre", value: checkin.guest.fullName)
-            DetailRow(title: "Correo", value: checkin.guest.email)
-            DetailRow(title: "Sesión", value: checkin.eventSession.name)
-            DetailRow(title: "Método", value: checkin.method)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(10)
-    }
-
-    struct DetailRow: View {
-        let title: String
-        let value: String
-
-        var body: some View {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title.uppercased())
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text(value)
-                    .font(.body)
-                    .foregroundColor(.primary)
-            }
-        }
+        isSuccess = success
+        alertTitle = success ? "✓ Éxito" : "✗ Error"
+        alertMessage = message
+        alertCheckin = checkin
+        showAlert = true
     }
 }
 

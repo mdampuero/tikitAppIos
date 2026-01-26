@@ -2,7 +2,7 @@ import Foundation
 import CommonCrypto
 
 class CryptoUtils {
-    // IMPORTANTE: Reemplaza esto con tu secret real del backend
+    // IMPORTANTE: Reemplaza esto con tu secret real del backend (mismo que kernel.secret de Symfony)
     private static let SECRET = "Secreta007!"
     
     private static func deriveKey() -> Data {
@@ -24,14 +24,23 @@ class CryptoUtils {
     }
     
     static func decrypt(_ encryptedData: String) -> String? {
+        print("DEBUG CryptoUtils: Intentando desencriptar: \(encryptedData)")
+        
         guard let data = Data(base64Encoded: encryptedData) else {
+            print("DEBUG CryptoUtils: Error decodificando base64")
             return nil
         }
+        
+        print("DEBUG CryptoUtils: Base64 decodificado, longitud: \(data.count)")
+        print("DEBUG CryptoUtils: Datos decodificados (hex): \(data.map { String(format: "%02x", $0) }.joined())")
         
         let key = deriveKey()
         let iv = deriveIV()
         
-        var decrypted = [UInt8](repeating: 0, count: data.count)
+        print("DEBUG CryptoUtils: Key length: \(key.count), IV length: \(iv.count)")
+        print("DEBUG CryptoUtils: IV derivado (hex): \(iv.map { String(format: "%02x", $0) }.joined())")
+        
+        var decrypted = [UInt8](repeating: 0, count: data.count + 32)
         var decryptedCount = Int(0)
         
         let status = data.withUnsafeBytes { encryptedBuffer in
@@ -55,11 +64,21 @@ class CryptoUtils {
         }
         
         guard status == kCCSuccess else {
-            print("Error desencriptando: \(status)")
+            print("DEBUG CryptoUtils: Error desencriptando con código: \(status)")
             return nil
         }
         
+        print("DEBUG CryptoUtils: Desencriptación exitosa, datos desencriptados: \(decryptedCount) bytes")
+        
         let decryptedData = Data(bytes: decrypted, count: Int(decryptedCount))
-        return String(data: decryptedData, encoding: .utf8)
+        
+        let hexString = decryptedData.map { String(format: "%02x", $0) }.joined()
+        print("DEBUG CryptoUtils: Bytes desencriptados (hex): \(hexString)")
+        
+        let result = String(data: decryptedData, encoding: .utf8)
+        
+        print("DEBUG CryptoUtils: Resultado desencriptado: \(result ?? "nil")")
+        
+        return result
     }
 }
