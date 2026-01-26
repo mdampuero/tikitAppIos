@@ -3,10 +3,12 @@ import AVFoundation
 
 struct QRScannerView: UIViewControllerRepresentable {
     let completion: (String) -> Void
+    let onCancel: () -> Void
 
     func makeUIViewController(context: Context) -> ScannerViewController {
         let controller = ScannerViewController()
         controller.onCodeScanned = completion
+        controller.onCancel = onCancel
         return controller
     }
 
@@ -17,7 +19,10 @@ class ScannerViewController: UIViewController, AVCaptureMetadataOutputObjectsDel
     var captureSession: AVCaptureSession!
     var previewLayer: AVCaptureVideoPreviewLayer!
     var onCodeScanned: ((String) -> Void)?
+    var onCancel: (() -> Void)?
     private var isPresentingAlert = false
+    private var isTorchOn = false
+    private var torchButton: UIButton?
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -55,12 +60,78 @@ class ScannerViewController: UIViewController, AVCaptureMetadataOutputObjectsDel
         view.layer.addSublayer(previewLayer)
 
         captureSession.startRunning()
+
+        // Agregar botón de cancelar estándar (X en la esquina) - DESPUÉS de la previewLayer
+        let cancelButton = UIButton(type: .system)
+        cancelButton.setImage(UIImage(systemName: "xmark.circle.fill"), for: .normal)
+        cancelButton.tintColor = .white
+        cancelButton.backgroundColor = UIColor.black.withAlphaComponent(0.5)
+        cancelButton.layer.cornerRadius = 22
+        cancelButton.translatesAutoresizingMaskIntoConstraints = false
+        cancelButton.addTarget(self, action: #selector(cancelScanning), for: .touchUpInside)
+        view.addSubview(cancelButton)
+        
+        // Posicionar en la esquina superior derecha
+        NSLayoutConstraint.activate([
+            cancelButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
+            cancelButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            cancelButton.widthAnchor.constraint(equalToConstant: 44),
+            cancelButton.heightAnchor.constraint(equalToConstant: 44)
+        ])
+
+        // Agregar botón de linterna si está disponible
+        if let device = AVCaptureDevice.default(for: .video), device.hasTorch {
+            torchButton = UIButton(type: .system)
+            torchButton?.setImage(UIImage(systemName: "flashlight.off.fill"), for: .normal)
+            torchButton?.tintColor = .white
+            torchButton?.backgroundColor = UIColor.black.withAlphaComponent(0.5)
+            torchButton?.layer.cornerRadius = 22
+            torchButton?.translatesAutoresizingMaskIntoConstraints = false
+            torchButton?.addTarget(self, action: #selector(toggleTorch), for: .touchUpInside)
+            view.addSubview(torchButton!)
+            
+            // Posicionar en la esquina inferior izquierda
+            NSLayoutConstraint.activate([
+                torchButton!.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -16),
+                torchButton!.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+                torchButton!.widthAnchor.constraint(equalToConstant: 44),
+                torchButton!.heightAnchor.constraint(equalToConstant: 44)
+            ])
+        }
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         if captureSession?.isRunning == true {
             captureSession.stopRunning()
+        }
+    }
+
+    @objc private func cancelScanning() {
+        captureSession?.stopRunning()
+        onCancel?()
+    }
+
+    @objc private func toggleTorch() {
+        guard let device = AVCaptureDevice.default(for: .video), device.hasTorch else { return }
+        
+        do {
+            try device.lockForConfiguration()
+            isTorchOn.toggle()
+            
+            if isTorchOn {
+                device.torchMode = .on
+                torchButton?.setImage(UIImage(systemName: "flashlight.on.fill"), for: .normal)
+                torchButton?.tintColor = .yellow
+            } else {
+                device.torchMode = .off
+                torchButton?.setImage(UIImage(systemName: "flashlight.off.fill"), for: .normal)
+                torchButton?.tintColor = .white
+            }
+            
+            device.unlockForConfiguration()
+        } catch {
+            print("Error al controlar la linterna: \(error.localizedDescription)")
         }
     }
 

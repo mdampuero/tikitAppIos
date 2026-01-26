@@ -42,15 +42,27 @@ struct ScanView: View {
         }
         .navigationTitle("Escanear")
         .fullScreenCover(isPresented: $isShowingScanner) {
-            QRScannerView { code in
-                isShowingScanner = false
-                handleScan(code)
-            }
+            QRScannerView(
+                completion: { code in
+                    isShowingScanner = false
+                    handleScan(code)
+                },
+                onCancel: {
+                    isShowingScanner = false
+                }
+            )
         }
     }
 
     private func handleScan(_ code: String) {
-        guard let guestId = Int(code) else {
+        // Intentar desencriptar el código
+        guard let decryptedCode = CryptoUtils.decrypt(code) else {
+            showToast(message: "Error al desencriptar el código QR")
+            return
+        }
+        
+        // El código desencriptado debe ser un ID numérico
+        guard let guestId = Int(decryptedCode) else {
             showToast(message: "Código inválido")
             return
         }

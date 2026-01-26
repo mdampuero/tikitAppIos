@@ -131,10 +131,11 @@ class SessionManager: ObservableObject {
 
     @MainActor
     func loginWithGoogle(presenting: UIViewController) async -> String? {
-        GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: "331974773758-ms75sk3bv25vkfm0a7qao8ft0ur1kvep.apps.googleusercontent.com")
         do {
             let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: presenting)
-            let googleToken = result.user.idToken?.tokenString ?? ""
+            // Usar accessToken en lugar de idToken
+            let googleToken = result.user.accessToken.tokenString
+            print("DEBUG: Google accessToken: \(googleToken)")
             return await socialLogin(token: googleToken)
         } catch {
             return error.localizedDescription
@@ -149,9 +150,23 @@ class SessionManager: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         let body: [String: String] = ["provider": "google", "token": token]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        
+        // Debug: Imprimir lo que se envía
+        if let bodyString = String(data: request.httpBody ?? Data(), encoding: .utf8) {
+            print("DEBUG: socialLogin request body: \(bodyString)")
+        }
+        
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
+            
+            // Debug: Imprimir respuesta
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("DEBUG: socialLogin response: \(responseString)")
+            }
+            
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+                print("DEBUG: socialLogin error status code: \(statusCode)")
                 return "Error del servidor"
             }
             let auth = try JSONDecoder().decode(AuthResponse.self, from: data)
@@ -170,6 +185,7 @@ class SessionManager: ObservableObject {
             }
             return nil
         } catch {
+            print("DEBUG: socialLogin catch error: \(error.localizedDescription)")
             return error.localizedDescription
         }
     }
