@@ -37,7 +37,7 @@ Tikit is an iOS event management application built with SwiftUI. The app enables
 
 ### ViewModels
 - [EventsViewModel.swift](../Tikit/EventsViewModel.swift): Manages paginated event list fetch
-  - `fetchEvents()` hits `/events?page=X&limit=10&order=id:DESC`
+  - `fetchEvents()` hits `/events?isActive=true&page=X&limit=100&order=id:DESC`
   - Implements `loadMoreIfNeeded()` for infinite scroll
   - Uses `Bearer {token}` authorization header
 

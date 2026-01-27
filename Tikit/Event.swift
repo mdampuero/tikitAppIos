@@ -6,13 +6,19 @@ struct Event: Codable, Identifiable, Equatable {
     let accessType: String
     let isActive: Bool
     let createdAt: String
+    let startDate: String?
+    let endDate: String?
+    let place: String?
+    let address: String?
+    let addressCity: String?
+    let categories: [Category]?
+    let landingMedia: [LandingMedia]?
+    let registrantsCount: Int?
+    let description: String?
+    let slug: String?
 
     enum CodingKeys: String, CodingKey {
-        case id
-        case name
-        case accessType
-        case isActive
-        case createdAt
+        case id, name, accessType, isActive, createdAt, startDate, endDate, place, address, addressCity, categories, landingMedia, registrantsCount, description, slug
     }
 
     var createdDateFormatted: String {
@@ -23,6 +29,56 @@ struct Event: Codable, Identifiable, Equatable {
         display.timeStyle = .short
         return display.string(from: date)
     }
+    
+    var eventDateRange: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd MMM yyyy"
+        formatter.locale = Locale(identifier: "es_ES")
+        
+        if let startDate = startDate {
+            let isoFormatter = ISO8601DateFormatter()
+            if let date = isoFormatter.date(from: startDate) {
+                let formatted = formatter.string(from: date)
+                return formatted
+            }
+        }
+        return ""
+    }
+    
+    var coverImageURL: URL? {
+        if let landingMedia = landingMedia, let first = landingMedia.first {
+            let path = first.path.hasPrefix("http") ? first.path : "https://tikit.cl\(first.path)"
+            return URL(string: path)
+        }
+        return URL(string: "https://tikit.cl/static/tikit/default.jpg")
+    }
+}
+
+struct Category: Codable, Identifiable, Equatable {
+    let id: Int
+    let name: String
+}
+
+struct LandingMedia: Codable, Identifiable, Equatable {
+    let id: Int
+    let path: String
+    let isDefault: Bool?
+}
+
+struct SessionRegistrantType: Codable, Identifiable {
+    let id: Int
+    let registrantType: RegistrantType
+    let price: Int
+    let stock: Int
+    let used: Int
+    let available: Int
+    let isActive: Bool
+}
+
+struct RegistrantType: Codable, Identifiable {
+    let id: Int
+    let name: String
+    let price: Int
 }
 
 struct EventsResponse: Codable {
@@ -59,6 +115,7 @@ struct EventSession: Codable, Identifiable {
     let startTime: String?
     let endDate: String?
     let endTime: String?
+    let registrantTypes: [SessionRegistrantType]?
 
     var dateRangeFormatted: String? {
         let inputFormatter = ISO8601DateFormatter()

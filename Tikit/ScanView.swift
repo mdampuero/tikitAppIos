@@ -160,7 +160,7 @@ struct ScanView: View {
 }
 
 #Preview {
-    ScanView(session: EventSession(id: 0, name: "Demo", description: nil, createdAt: nil, updatedAt: nil, isDefault: nil, startDate: nil, startTime: nil, endDate: nil, endTime: nil))
+    ScanView(session: EventSession(id: 0, name: "Demo", description: nil, createdAt: nil, updatedAt: nil, isDefault: nil, startDate: nil, startTime: nil, endDate: nil, endTime: nil, registrantTypes: nil))
         .environmentObject(SessionManager())
 }
 
