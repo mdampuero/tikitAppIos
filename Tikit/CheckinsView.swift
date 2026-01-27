@@ -1,9 +1,11 @@
 import SwiftUI
 import AudioToolbox
+import OSLog
 
 struct CheckinsView: View {
     let session: EventSession
     let eventID: Int
+    let eventName: String
     @EnvironmentObject var sessionManager: SessionManager
     @State private var checkins: [CheckinData] = []
     @State private var isLoading = false
@@ -14,6 +16,15 @@ struct CheckinsView: View {
     @State private var resultCheckin: CheckinResponse?
     @State private var resultRegistrantType: SessionRegistrantType?
     @State private var isSuccess = false
+    @State private var selectedCheckin: CheckinData?
+    @State private var checkinError: CheckinError?
+    private let logger = Logger(subsystem: "com.tikit", category: "CheckinsView")
+    
+    struct CheckinError: Identifiable {
+        let id = UUID()
+        let title: String
+        let message: String
+    }
 
     var body: some View {
         ZStack {
@@ -102,7 +113,13 @@ struct CheckinsView: View {
                         ScrollView {
                             VStack(spacing: 8) {
                                 ForEach(checkins) { checkin in
-                                    CheckinCard(checkin: checkin)
+                                    CheckinCard(
+                                        checkin: checkin,
+                                        registrantType: session.registrantTypes?.first(where: { $0.isActive })
+                                    )
+                                    .onTapGesture {
+                                        selectedCheckin = checkin
+                                    }
                                 }
                             }
                             .padding(.horizontal, 16)
@@ -145,18 +162,48 @@ struct CheckinsView: View {
                 }
             )
         }
-        .alert(resultTitle, isPresented: $showResultAlert) {
-            Button("Aceptar") {
-                showResultAlert = false
-                resultCheckin = nil
-            }
-            .keyboardShortcut(.defaultAction)
-        } message: {
+        .sheet(isPresented: $showResultAlert) {
             if isSuccess, let checkin = resultCheckin, let registrant = resultRegistrantType {
-                Text("Nombre: \(checkin.guest.fullName)\nEmail: \(checkin.guest.email)\nTipo: \(registrant.registrantType.name)\nMétodo: \(checkin.method)")
-            } else {
-                Text(resultMessage)
+                CheckinSuccessView(
+                    checkin: checkin,
+                    registrantType: registrant,
+                    sessionName: session.name,
+                    eventName: eventName,
+                    onDismiss: {
+                        showResultAlert = false
+                        resultCheckin = nil
+                    }
+                )
             }
+        }
+        .sheet(item: $checkinError) { error in
+            CheckinErrorView(
+                title: error.title,
+                message: error.message,
+                onDismiss: {
+                    checkinError = nil
+                }
+            )
+        }
+        .sheet(item: $selectedCheckin) { checkin in
+            CheckinSuccessView(
+                checkin: CheckinResponse(
+                    id: checkin.id,
+                    guest: checkin.guest,
+                    eventSession: checkin.eventSession,
+                    method: checkin.method,
+                    latitude: checkin.latitude,
+                    longitude: checkin.longitude,
+                    createdAt: checkin.createdAt,
+                    updatedAt: checkin.updatedAt
+                ),
+                registrantType: session.registrantTypes?.first(where: { $0.isActive }),
+                sessionName: session.name,
+                eventName: eventName,
+                onDismiss: {
+                    selectedCheckin = nil
+                }
+            )
         }
         .onAppear {
             Task { await fetchCheckins() }
@@ -167,9 +214,11 @@ struct CheckinsView: View {
         guard let token = sessionManager.token, !isLoading else { return }
         isLoading = true
         
-        let filter = "[{\"field\":\"e.session\",\"operator\":\"=\",\"value\":\(session.id)}]"
+        let filter = "[{\"field\":\"e.event\",\"operator\":\"=\",\"value\":\(eventID)},{\"field\":\"e.eventSession\",\"operator\":\"=\",\"value\":\(session.id)}]"
         let encodedFilter = filter.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let urlString = "\(APIConstants.baseURL)checkins?page=1&query=&limit=100&order=id:DESC&filter=\(encodedFilter)"
+        
+        print("DEBUG: Fetching checkins from endpoint: \(urlString)")
         
         guard let url = URL(string: urlString) else { isLoading = false; return }
         
@@ -179,6 +228,11 @@ struct CheckinsView: View {
         
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("DEBUG: Checkins response: \(responseString)")
+            }
+            
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 isLoading = false
                 return
@@ -191,6 +245,40 @@ struct CheckinsView: View {
         isLoading = false
     }
     
+    private func log(_ message: String) {
+        logger.debug("\(message, privacy: .public)")
+    }
+    
+    private func translateErrorMessage(_ message: String) -> String {
+        let translations: [String: String] = [
+            "Invalid data": "Datos inválidos",
+            "invalid data": "Datos inválidos",
+            "Not found": "No encontrado",
+            "not found": "No encontrado",
+            "Guest is not registered in this event": "El invitado no está registrado en este evento",
+            "guest is not registered in this event": "El invitado no está registrado en este evento",
+            "Guest is not registered in this session": "El invitado no está registrado en esta sesión",
+            "guest is not registered in this session": "El invitado no está registrado en esta sesión",
+            "Guest has already checked in for this session": "El invitado ya ha realizado check-in en esta sesión",
+            "guest has already checked in for this session": "El invitado ya ha realizado check-in en esta sesión"
+        ]
+        
+        // Buscar coincidencia exacta
+        if let translated = translations[message] {
+            return translated
+        }
+        
+        // Buscar coincidencia parcial
+        for (key, value) in translations {
+            if message.lowercased().contains(key.lowercased()) {
+                return value
+            }
+        }
+        
+        // Si no hay traducción conocida, mostrar mensaje desconocido
+        return "Mensaje desconocido: \(message)"
+    }
+    
     private func registerCheckin(encryptedCode: String) async {
         guard let token = sessionManager.token else { return }
         
@@ -201,11 +289,30 @@ struct CheckinsView: View {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
-        let body: [String: Any] = ["eventSession": session.id, "guest": encryptedCode]
+        let body: [String: Any] = ["event": eventID, "eventSession": session.id, "guest": encryptedCode]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        
+        // Log de la request
+        log("--- INICIO LOG REQUEST CHECKIN REGISTER ---")
+        log("URL: \(url.absoluteString)")
+        log("Method: \(request.httpMethod ?? "N/A")")
+        log("Headers: \(request.allHTTPHeaderFields ?? [:])")
+        if let bodyData = request.httpBody, let bodyString = String(data: bodyData, encoding: .utf8) {
+            log("Payload: \(bodyString)")
+        } else {
+            log("Payload: (empty)")
+        }
+        log("--- FIN LOG REQUEST CHECKIN REGISTER ---")
         
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
+            
+            // Log de la respuesta
+            if let responseString = String(data: data, encoding: .utf8) {
+                log("Response status code: \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+                log("Response body: \(responseString)")
+            }
+            
             guard let http = response as? HTTPURLResponse else { return }
             
             let decoder = JSONDecoder()
@@ -238,43 +345,29 @@ struct CheckinsView: View {
                         ), at: 0)
                     }
                 }
-            case 403:
-                await MainActor.run {
-                    isSuccess = false
-                    resultTitle = "✗ Error"
-                    resultMessage = "Esta persona ya realizó check-in en esta sesión."
-                    showResultAlert = true
-                }
-            case 404:
-                await MainActor.run {
-                    isSuccess = false
-                    resultTitle = "✗ Error"
-                    resultMessage = "No se encontró a esta persona en el registro."
-                    showResultAlert = true
-                }
-            case 400:
-                await MainActor.run {
-                    isSuccess = false
-                    resultTitle = "✗ Error"
-                    resultMessage = "Solicitud inválida. El registrante o la sesión no existen."
-                    showResultAlert = true
-                }
             default:
                 let apiError = try? decoder.decode(CheckinAPIErrorResponse.self, from: data)
-                let errorMessage = apiError?.message ?? apiError?.error ?? "Error desconocido"
+                let rawErrorMessage = apiError?.message ?? apiError?.error ?? "Error desconocido"
+                let translatedMessage = translateErrorMessage(rawErrorMessage)
+                log("Status code: \(http.statusCode)")
+                log("Raw error message: \(rawErrorMessage)")
+                log("Translated message: \(translatedMessage)")
                 await MainActor.run {
-                    isSuccess = false
-                    resultTitle = "✗ Error"
-                    resultMessage = errorMessage
-                    showResultAlert = true
+                    let finalMessage = translatedMessage.isEmpty ? "Error desconocido" : translatedMessage
+                    log("Setting error with message: \(finalMessage)")
+                    checkinError = CheckinError(
+                        title: "Error de Check-in",
+                        message: finalMessage
+                    )
                 }
             }
         } catch {
+            log("Catch error: \(error.localizedDescription)")
             await MainActor.run {
-                isSuccess = false
-                resultTitle = "✗ Error"
-                resultMessage = error.localizedDescription
-                showResultAlert = true
+                checkinError = CheckinError(
+                    title: "Error de Check-in",
+                    message: error.localizedDescription
+                )
             }
         }
     }
@@ -314,6 +407,7 @@ struct CheckinsView: View {
 
 struct CheckinCard: View {
     let checkin: CheckinData
+    let registrantType: SessionRegistrantType?
     
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -322,18 +416,9 @@ struct CheckinCard: View {
                 .font(.headline)
                 .foregroundColor(.primary)
             
-            // Email
-            HStack(spacing: 6) {
-                Image(systemName: "envelope.circle.fill")
-                    .foregroundColor(.blue)
-                    .font(.system(size: 14))
-                Text(checkin.guest.email)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            // Método y hora
+            // Método y fecha/hora
             HStack(spacing: 12) {
+                // Método
                 HStack(spacing: 4) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.green)
@@ -348,13 +433,14 @@ struct CheckinCard: View {
                 .background(Color.green.opacity(0.1))
                 .cornerRadius(4)
                 
+                // Fecha y hora
                 if let createdAt = checkin.createdAt {
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock.fill")
+                    HStack(spacing: 6) {
+                        Image(systemName: "calendar")
                             .foregroundColor(.orange)
                             .font(.system(size: 12))
-                        Text(formatTime(createdAt))
-                            .font(.caption2)
+                        Text(formatDateTime(createdAt))
+                            .font(.caption)
                             .foregroundColor(.secondary)
                     }
                 }
@@ -367,11 +453,11 @@ struct CheckinCard: View {
         .cornerRadius(10)
     }
     
-    private func formatTime(_ dateString: String) -> String {
+    private func formatDateTime(_ dateString: String) -> String {
         let formatter = ISO8601DateFormatter()
         guard let date = formatter.date(from: dateString) else { return dateString }
         let display = DateFormatter()
-        display.dateFormat = "HH:mm"
+        display.dateFormat = "dd MMM yyyy HH:mm"
         display.locale = Locale(identifier: "es_ES")
         return display.string(from: date)
     }
@@ -380,7 +466,8 @@ struct CheckinCard: View {
 #Preview {
     CheckinsView(
         session: EventSession(id: 1, name: "Sesión Demo", description: nil, createdAt: nil, updatedAt: nil, isDefault: nil, startDate: "2026-03-01T00:00:00+00:00", startTime: nil, endDate: "2026-04-30T00:00:00+00:00", endTime: nil, registrantTypes: nil),
-        eventID: 6
+        eventID: 6,
+        eventName: "Evento Demo"
     )
     .environmentObject(SessionManager())
 }

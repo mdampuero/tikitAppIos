@@ -59,7 +59,10 @@ class ScannerViewController: UIViewController, AVCaptureMetadataOutputObjectsDel
         previewLayer.videoGravity = .resizeAspectFill
         view.layer.addSublayer(previewLayer)
 
-        captureSession.startRunning()
+        // Ejecutar el startRunning en un hilo de fondo para evitar bloquear la UI
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            self?.captureSession.startRunning()
+        }
 
         // Agregar botón de cancelar estándar (X en la esquina) - DESPUÉS de la previewLayer
         let cancelButton = UIButton(type: .system)

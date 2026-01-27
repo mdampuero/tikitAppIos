@@ -268,7 +268,7 @@ struct SessionsView: View {
                         ScrollView {
                             VStack(spacing: 12) {
                                 ForEach(sessions) { item in
-                                    NavigationLink(destination: CheckinsView(session: item, eventID: event.id)) {
+                                    NavigationLink(destination: CheckinsView(session: item, eventID: event.id, eventName: event.name)) {
                                         SessionCard(session: item, eventID: event.id)
                                     }
                                 }
