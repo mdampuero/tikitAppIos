@@ -20,6 +20,20 @@ struct CheckinSuccessView: View {
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .foregroundColor(.primary)
+                
+                // Método y fecha/hora
+                VStack(spacing: 4) {
+                    Text("Método: \(checkin.method)")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    if let createdAt = checkin.createdAt {
+                        Text(formatDateTime(createdAt))
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(.top, 8)
             }
             .padding(.vertical, 40)
             .frame(maxWidth: .infinity)
@@ -83,6 +97,16 @@ struct CheckinSuccessView: View {
                     .foregroundColor(.primary)
             }
         }
+    }
+    
+    private func formatDateTime(_ dateString: String) -> String {
+        let formatter = ISO8601DateFormatter()
+        guard let date = formatter.date(from: dateString) else { return dateString }
+        
+        let display = DateFormatter()
+        display.dateFormat = "dd MMM yyyy HH:mm"
+        display.locale = Locale(identifier: "es_ES")
+        return display.string(from: date)
     }
 }
 

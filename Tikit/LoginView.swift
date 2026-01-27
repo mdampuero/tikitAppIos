@@ -20,43 +20,48 @@ struct LoginView: View {
 
     var body: some View {
         ZStack {
-            VStack {
-                Spacer().frame(height: 80)
-                Image(colorScheme == .dark ? "LogoDark" : "LogoLight")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 180, height: 180)
-                Text("Bienvenido a Tikit")
-                    .font(.title2)
-                    .bold()
-                    .padding(.top, 16)
-                Text("Tu administrador de eventos")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .padding(.top, 4)
+            ScrollView {
+                VStack {
+                    Spacer().frame(height: 60)
 
-                Button(action: handleGoogle) {
-                    HStack(spacing: 8) {
-                        Image("GoogleIcon")
+                    VStack(spacing: 16) {
+                        Image(colorScheme == .dark ? "LogoDark" : "LogoLight")
                             .resizable()
-                            .frame(width: 20, height: 20)
-                        Text("Google")
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.vertical, 8)
-                    .padding(.horizontal, 16)
-                }
-                .background(Color.clear)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 30)
-                        .stroke(Color.gray.opacity(0.5), lineWidth: 1)
-                )
-                .clipShape(Capsule())
-                .disabled(isLoading)
-                .padding(.top, 24)
+                            .scaledToFit()
+                            .frame(width: 180, height: 180)
 
-                VStack(alignment: .leading, spacing: 16) {
-                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Bienvenido a Tikit")
+                            .font(.title2)
+                            .bold()
+
+                        Text("Tu administrador de eventos")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+
+                        Button(action: handleGoogle) {
+                            HStack(spacing: 8) {
+                                Image("GoogleIcon")
+                                    .resizable()
+                                    .frame(width: 20, height: 20)
+                                Text("Google")
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 16)
+                        }
+                        .background(Color.clear)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 30)
+                                .stroke(Color.gray.opacity(0.5), lineWidth: 1)
+                        )
+                        .clipShape(Capsule())
+                        .disabled(isLoading)
+                        .padding(.top, 24)
+                    }
+                    .padding(.horizontal, 24)
+
+                    VStack(alignment: .leading, spacing: 16) {
+                        VStack(alignment: .leading, spacing: 4) {
                             TextField("", text: $email)
                                 .focused($focusedField, equals: .email)
                                 .keyboardType(.emailAddress)
@@ -66,9 +71,9 @@ struct LoginView: View {
                                 }
                                 .padding()
                                 .background(Color(.secondarySystemBackground))
-                                .cornerRadius(8)
+                                .cornerRadius(10)
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
+                                    RoundedRectangle(cornerRadius: 10)
                                         .stroke(emailError != nil && focusedField != .email ? Color.red : Color.clear, lineWidth: 1)
                                 )
                                 .disabled(isLoading)
@@ -99,9 +104,9 @@ struct LoginView: View {
                             }
                             .padding()
                             .background(Color(.secondarySystemBackground))
-                            .cornerRadius(8)
+                            .cornerRadius(10)
                             .overlay(
-                                RoundedRectangle(cornerRadius: 8)
+                                RoundedRectangle(cornerRadius: 10)
                                     .stroke(passwordError != nil && focusedField != .password ? Color.red : Color.clear, lineWidth: 1)
                             )
                             .disabled(isLoading)
@@ -132,20 +137,22 @@ struct LoginView: View {
                     .padding(.top, 24)
                     Spacer()
                 }
-                if let toast = toastMessage {
-                    VStack {
-                        Spacer()
-                        Text(toast)
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(Color.black.opacity(0.8))
-                            .cornerRadius(8)
-                            .padding(.bottom, 40)
-                    }
-                    .transition(.opacity)
+            }
+
+            if let toast = toastMessage {
+                VStack {
+                    Spacer()
+                    Text(toast)
+                        .foregroundColor(.white)
+                        .padding()
+                        .background(Color.black.opacity(0.8))
+                        .cornerRadius(8)
+                        .padding(.bottom, 40)
                 }
+                .transition(.opacity)
             }
         }
+    }
 
     @MainActor
     func handleLogin() async {
