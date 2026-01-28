@@ -92,6 +92,9 @@ struct CheckinsView: View {
                 }
                 .padding(12)
                 .background(Color(.secondarySystemBackground))
+                .transaction { transaction in
+                    transaction.animation = nil
+                }
                 
                 // Listado de checkins
                 VStack(alignment: .leading, spacing: 12) {
@@ -102,6 +105,9 @@ struct CheckinsView: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
+                    .transaction { transaction in
+                        transaction.animation = nil
+                    }
                     
                     if isLoading {
                         ProgressView()
@@ -158,8 +164,8 @@ struct CheckinsView: View {
                 }
             }
         }
-        .navigationTitle("Check-ins")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationTitle("Check-ins")
         .fullScreenCover(isPresented: $isShowingScanner) {
             QRScannerView(
                 completion: { code in
