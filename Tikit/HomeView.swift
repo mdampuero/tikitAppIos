@@ -42,31 +42,30 @@ struct EventCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Contenedor de imagen con geometría fija para evitar que la imagen lo redimensione
-            ZStack {
-                // Placeholder que establece el fondo y el tamaño
-                Rectangle()
-                    .fill(Color.gray.opacity(0.2))
-                
-                // Imagen asíncrona que se superpone
-                AsyncImage(url: event.coverImageURL) { phase in
-                    if let image = phase.image {
-                        image
-                            .resizable()
-                            .scaledToFill() // Rellena el frame sin distorsionar
-                    } else if phase.error != nil {
-                        // En caso de error, muestra un ícono
-                        Image(systemName: "photo")
-                            .font(.largeTitle)
-                            .foregroundColor(.gray)
-                    } else {
-                        // Mientras carga, muestra un spinner
-                        ProgressView()
+            // Contenedor de imagen con proporción 16:9
+            GeometryReader { geometry in
+                ZStack {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.2))
+                    
+                    AsyncImage(url: event.coverImageURL) { phase in
+                        if let image = phase.image {
+                            image
+                                .resizable()
+                                .scaledToFill()
+                        } else if phase.error != nil {
+                            Image(systemName: "photo")
+                                .font(.largeTitle)
+                                .foregroundColor(.gray)
+                        } else {
+                            ProgressView()
+                        }
                     }
                 }
+                .frame(width: geometry.size.width, height: geometry.size.width * 9/16)
+                .clipped()
             }
-            .frame(height: 200) // Altura fija para el contenedor de la imagen
-            .clipped() // Recorta cualquier contenido de la imagen que se salga del frame
+            .aspectRatio(16/9, contentMode: .fit)
             
             VStack(alignment: .leading, spacing: 12) {
                 // Nombre del evento
