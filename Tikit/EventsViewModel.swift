@@ -40,7 +40,7 @@ class EventsViewModel: ObservableObject {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await NetworkManager.shared.dataRequest(for: request)
             
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 // print("Error: Status code \((response as? HTTPURLResponse)?.statusCode ?? 0)")

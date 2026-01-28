@@ -45,6 +45,10 @@ class SessionManager: ObservableObject {
             user = storedUser
         }
         isLoggedIn = token != nil
+        
+        // Registrar este SessionManager en el NetworkManager
+        NetworkManager.shared.setSessionManager(self)
+        
         if isLoggedIn {
             Task {
                 _ = await refreshAuthToken()

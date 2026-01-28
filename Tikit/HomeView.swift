@@ -299,7 +299,7 @@ struct SessionsView: View {
         request.httpMethod = "GET"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await NetworkManager.shared.dataRequest(for: request)
             
             if let responseString = String(data: data, encoding: .utf8) {
                 // print("DEBUG: Sessions response: \(responseString)")
