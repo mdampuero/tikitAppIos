@@ -67,18 +67,135 @@ struct LandingMedia: Codable, Identifiable, Equatable {
 
 struct SessionRegistrantType: Codable, Identifiable {
     let id: Int
-    let registrantType: RegistrantType
+    let registrantType: RegistrantType?
     let price: Int
     let stock: Int
-    let used: Int
+    let used: Int?
     let available: Int
     let isActive: Bool
+    let registered: Int?
+    let checkins: Int?
+    let attendancePercentage: Double?
+    
+    enum CodingKeys: String, CodingKey {
+        case id = "sessionRegistrantTypeId"
+        case registrantTypeId
+        case registrantTypeName
+        case price
+        case stock
+        case used
+        case available
+        case isActive
+        case registered
+        case checkins
+        case attendancePercentage
+    }
+    
+    init(id: Int, registrantType: RegistrantType?, price: Int, stock: Int, used: Int?, available: Int, isActive: Bool, registered: Int?, checkins: Int?, attendancePercentage: Double?) {
+        self.id = id
+        self.registrantType = registrantType
+        self.price = price
+        self.stock = stock
+        self.used = used
+        self.available = available
+        self.isActive = isActive
+        self.registered = registered
+        self.checkins = checkins
+        self.attendancePercentage = attendancePercentage
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(Int.self, forKey: .id)
+        
+        // Decodificar registrantType manualmente desde los campos planos
+        if let typeId = try? container.decode(Int.self, forKey: .registrantTypeId),
+           let typeName = try? container.decode(String.self, forKey: .registrantTypeName) {
+            registrantType = RegistrantType(id: typeId, name: typeName, price: nil)
+        } else {
+            registrantType = nil
+        }
+        
+        price = try container.decode(Int.self, forKey: .price)
+        stock = try container.decode(Int.self, forKey: .stock)
+        used = try? container.decode(Int.self, forKey: .used)
+        available = try container.decode(Int.self, forKey: .available)
+        isActive = try container.decode(Bool.self, forKey: .isActive)
+        registered = try? container.decode(Int.self, forKey: .registered)
+        checkins = try? container.decode(Int.self, forKey: .checkins)
+        attendancePercentage = try? container.decode(Double.self, forKey: .attendancePercentage)
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encodeIfPresent(registrantType?.id, forKey: .registrantTypeId)
+        try container.encodeIfPresent(registrantType?.name, forKey: .registrantTypeName)
+        try container.encode(price, forKey: .price)
+        try container.encode(stock, forKey: .stock)
+        try container.encodeIfPresent(used, forKey: .used)
+        try container.encode(available, forKey: .available)
+        try container.encode(isActive, forKey: .isActive)
+        try container.encodeIfPresent(registered, forKey: .registered)
+        try container.encodeIfPresent(checkins, forKey: .checkins)
+        try container.encodeIfPresent(attendancePercentage, forKey: .attendancePercentage)
+    }
 }
 
 struct RegistrantType: Codable, Identifiable {
     let id: Int
     let name: String
-    let price: Int
+    let price: Int?
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case registrantTypeId
+        case name
+        case registrantTypeName
+        case price
+        case createdAt
+        case updatedAt
+        case isDefault
+        case isVisible
+        case stock
+    }
+    
+    init(id: Int, name: String, price: Int?) {
+        self.id = id
+        self.name = name
+        self.price = price
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        // Intentar decodificar id desde "id" o "registrantTypeId"
+        if let idValue = try? container.decode(Int.self, forKey: .id) {
+            id = idValue
+        } else if let idValue = try? container.decode(Int.self, forKey: .registrantTypeId) {
+            id = idValue
+        } else {
+            throw DecodingError.keyNotFound(CodingKeys.id, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "No id or registrantTypeId found"))
+        }
+        
+        // Intentar decodificar name desde "name" o "registrantTypeName"
+        if let nameValue = try? container.decode(String.self, forKey: .name) {
+            name = nameValue
+        } else if let nameValue = try? container.decode(String.self, forKey: .registrantTypeName) {
+            name = nameValue
+        } else {
+            throw DecodingError.keyNotFound(CodingKeys.name, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "No name or registrantTypeName found"))
+        }
+        
+        price = try? container.decode(Int.self, forKey: .price)
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encodeIfPresent(price, forKey: .price)
+    }
 }
 
 struct EventsResponse: Codable {
@@ -101,7 +218,10 @@ struct Pagination: Codable {
 }
 
 struct SessionsResponse: Codable {
+    let eventId: Int
+    let eventName: String
     let sessions: [EventSession]
+    let totalSessions: Int
 }
 
 struct EventSession: Codable, Identifiable {

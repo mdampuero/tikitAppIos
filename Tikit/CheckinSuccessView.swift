@@ -51,7 +51,7 @@ struct CheckinSuccessView: View {
             
             // Detalles del acceso
             VStack(alignment: .leading, spacing: 20) {
-                detailRow(icon: "ticket.fill", title: "Tipo de Acceso", value: registrantType?.registrantType.name ?? "No especificado")
+                detailRow(icon: "ticket.fill", title: "Tipo de Acceso", value: registrantType?.registrantType?.name ?? "No especificado")
                 detailRow(icon: "calendar", title: "Sesión", value: sessionName)
                 detailRow(icon: "mappin.and.ellipse", title: "Evento", value: eventName)
             }
@@ -113,10 +113,11 @@ struct CheckinSuccessView: View {
 #if DEBUG
 struct CheckinSuccessView_Previews: PreviewProvider {
     static var previews: some View {
-        let guest = CheckinResponse.Guest(id: 1, firstName: "John", lastName: "Doe", email: "john.doe@example.com")
+        let registrantTypeInfo = RegistrantType(id: 1, name: "Acceso General", price: 0)
+        let guest = CheckinResponse.Guest(id: 1, firstName: "John", lastName: "Doe", email: "john.doe@example.com", registrantType: registrantTypeInfo)
         let sessionInfo = CheckinResponse.EventSessionInfo(id: 1, name: "Sesión Principal")
         let checkin = CheckinResponse(id: 1, guest: guest, eventSession: sessionInfo, method: "QR", latitude: nil, longitude: nil, createdAt: nil, updatedAt: nil)
-        let registrantType = SessionRegistrantType(id: 1, registrantType: RegistrantType(id: 1, name: "Acceso General", price: 0), price: 0, stock: 100, used: 10, available: 90, isActive: true)
+        let registrantType = SessionRegistrantType(id: 1, registrantType: registrantTypeInfo, price: 0, stock: 100, used: 10, available: 90, isActive: true, registered: 100, checkins: 50, attendancePercentage: 50.0)
         
         CheckinSuccessView(
             checkin: checkin,

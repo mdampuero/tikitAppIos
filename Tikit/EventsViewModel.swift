@@ -43,7 +43,7 @@ class EventsViewModel: ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: request)
             
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-                print("Error: Status code \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+                // print("Error: Status code \((response as? HTTPURLResponse)?.statusCode ?? 0)")
                 return
             }
             
@@ -52,11 +52,11 @@ class EventsViewModel: ObservableObject {
             currentPage += 1
             totalPages = result.pagination.totalPages
             
-            print("✓ Loaded page \(currentPage - 1) of \(totalPages) - Total events: \(events.count)")
+            // print("✓ Loaded page \(currentPage - 1) of \(totalPages) - Total events: \(events.count)")
         } catch is CancellationError {
-            print("Cancelled request (expected when navigating)")
+            // print("Cancelled request (expected when navigating)")
         } catch {
-            print("Error fetching events: \(error.localizedDescription)")
+            // print("Error fetching events: \(error.localizedDescription)")
         }
     }
 }

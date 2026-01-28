@@ -293,21 +293,27 @@ struct SessionsView: View {
     private func fetchSessions() async {
         guard let token = session.token, !isLoading else { return }
         isLoading = true
-        let urlString = "\(APIConstants.baseURL)events/\(event.id)"
+        let urlString = "\(APIConstants.baseURL)events/\(event.id)/sessions"
         guard let url = URL(string: urlString) else { isLoading = false; return }
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let responseString = String(data: data, encoding: .utf8) {
+                // print("DEBUG: Sessions response: \(responseString)")
+            }
+            
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                // print("Error: Status code \((response as? HTTPURLResponse)?.statusCode ?? 0)")
                 isLoading = false
                 return
             }
             let result = try JSONDecoder().decode(SessionsResponse.self, from: data)
             sessions = result.sessions
         } catch {
-            print("Error fetching sessions: \(error.localizedDescription)")
+            // print("Error fetching sessions: \(error.localizedDescription)")
         }
         isLoading = false
     }
@@ -375,41 +381,31 @@ struct SessionCard: View {
                 VStack(alignment: .leading, spacing: 10) {
                     ForEach(registrantTypes) { registrant in
                         VStack(alignment: .leading, spacing: 6) {
-                            // Nombre y precio
+                            // Nombre de categoría
                             HStack(spacing: 8) {
-                                Text(registrant.registrantType.name)
+                                Text(registrant.registrantType?.name ?? "Sin nombre")
                                     .font(.caption)
                                     .fontWeight(.semibold)
                                     .foregroundColor(.primary)
                                 
-                                if registrant.price > 0 {
-                                    Text("$\(registrant.price)")
-                                        .font(.caption2)
-                                        .foregroundColor(.green)
-                                        .fontWeight(.medium)
-                                } else {
-                                    Text("Libre")
-                                        .font(.caption2)
-                                        .foregroundColor(.blue)
-                                        .fontWeight(.medium)
-                                }
-                                
                                 Spacer()
                                 
-                                Text("\(registrant.available)/\(registrant.stock)")
+                                Text("\(registrant.checkins ?? 0)/\(registrant.registered ?? 0)")
                                     .font(.caption2)
                                     .foregroundColor(.secondary)
                             }
                             
-                            // Barra de progreso
-                            ZStack(alignment: .leading) {
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(Color.gray.opacity(0.2))
-                                    .frame(height: 6)
-                                
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(Color.green)
-                                    .frame(width: progressWidth(registrant), height: 6)
+                            // Barra de progreso (checkins sobre registrados)
+                            GeometryReader { geometry in
+                                ZStack(alignment: .leading) {
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(Color.gray.opacity(0.2))
+                                        .frame(height: 6)
+                                    
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(Color.green)
+                                        .frame(width: progressWidth(registrant, containerWidth: geometry.size.width), height: 6)
+                                }
                             }
                             .frame(height: 6)
                         }
@@ -455,10 +451,12 @@ struct SessionCard: View {
         return formattedDate
     }
     
-    private func progressWidth(_ registrant: SessionRegistrantType) -> CGFloat {
-        guard registrant.stock > 0 else { return 0 }
-        let usedPercentage = CGFloat(registrant.used) / CGFloat(registrant.stock)
-        return usedPercentage * 280
+    private func progressWidth(_ registrant: SessionRegistrantType, containerWidth: CGFloat) -> CGFloat {
+        guard let registered = registrant.registered, registered > 0 else { return 0 }
+        let checkins = CGFloat(registrant.checkins ?? 0)
+        let registeredFloat = CGFloat(registered)
+        let percentage = checkins / registeredFloat
+        return percentage * containerWidth
     }
 }
 

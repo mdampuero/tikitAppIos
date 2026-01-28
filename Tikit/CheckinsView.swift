@@ -20,6 +20,15 @@ struct CheckinsView: View {
     @State private var checkinError: CheckinError?
     private let logger = Logger(subsystem: "com.tikit", category: "CheckinsView")
     
+    private var totalCheckinsInSession: Int {
+        checkins.count
+    }
+    
+    private var totalRegisteredInSession: Int {
+        guard let registrantTypes = session.registrantTypes else { return 0 }
+        return registrantTypes.reduce(0) { $0 + ($1.registered ?? 0) }
+    }
+    
     struct CheckinError: Identifiable {
         let id = UUID()
         let title: String
@@ -87,7 +96,7 @@ struct CheckinsView: View {
                 // Listado de checkins
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
-                        Text("Check-ins (\(checkins.count))")
+                        Text("Check-ins (\(totalCheckinsInSession)/\(totalRegisteredInSession))")
                             .font(.headline)
                         Spacer()
                     }
@@ -197,7 +206,9 @@ struct CheckinsView: View {
                     createdAt: checkin.createdAt,
                     updatedAt: checkin.updatedAt
                 ),
-                registrantType: session.registrantTypes?.first(where: { $0.isActive }),
+                registrantType: session.registrantTypes?.first(where: { 
+                    $0.registrantType?.id == checkin.guest.registrantType?.id 
+                }),
                 sessionName: session.name,
                 eventName: eventName,
                 onDismiss: {
@@ -218,7 +229,7 @@ struct CheckinsView: View {
         let encodedFilter = filter.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let urlString = "\(APIConstants.baseURL)checkins?page=1&query=&limit=100&order=id:DESC&filter=\(encodedFilter)"
         
-        print("DEBUG: Fetching checkins from endpoint: \(urlString)")
+        // print("DEBUG: Fetching checkins from endpoint: \(urlString)")
         
         guard let url = URL(string: urlString) else { isLoading = false; return }
         
@@ -230,7 +241,7 @@ struct CheckinsView: View {
             let (data, response) = try await URLSession.shared.data(for: request)
             
             if let responseString = String(data: data, encoding: .utf8) {
-                print("DEBUG: Checkins response: \(responseString)")
+                // print("DEBUG: Checkins response: \(responseString)")
             }
             
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
@@ -240,7 +251,7 @@ struct CheckinsView: View {
             let result = try JSONDecoder().decode(CheckinsResponse.self, from: data)
             checkins = result.data
         } catch {
-            print("Error fetching checkins: \(error.localizedDescription)")
+            // print("Error fetching checkins: \(error.localizedDescription)")
         }
         isLoading = false
     }
@@ -411,10 +422,25 @@ struct CheckinCard: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            // Nombre del guest
-            Text(checkin.guest.fullName)
-                .font(.headline)
-                .foregroundColor(.primary)
+            // Nombre del guest con badge de categoría
+            HStack(spacing: 8) {
+                Text(checkin.guest.fullName)
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                
+                Spacer()
+                
+                if let accessType = checkin.guest.registrantType?.name {
+                    Text(accessType)
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.brandPrimary)
+                        .cornerRadius(4)
+                }
+            }
             
             // Método y fecha/hora
             HStack(spacing: 12) {

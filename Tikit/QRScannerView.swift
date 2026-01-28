@@ -134,7 +134,7 @@ class ScannerViewController: UIViewController, AVCaptureMetadataOutputObjectsDel
             
             device.unlockForConfiguration()
         } catch {
-            print("Error al controlar la linterna: \(error.localizedDescription)")
+            // print("Error al controlar la linterna: \(error.localizedDescription)")
         }
     }
 

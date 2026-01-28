@@ -65,10 +65,10 @@ class SessionManager: ObservableObject {
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             if let http = response as? HTTPURLResponse {
-                print("Login status: \(http.statusCode)")
+                // print("Login status: \(http.statusCode)")
             }
             if let bodyString = String(data: data, encoding: .utf8) {
-                print("Login response: \(bodyString)")
+                // print("Login response: \(bodyString)")
             }
             guard let http = response as? HTTPURLResponse else {
                 return APIErrorResponse(message: "Error del servidor", errors: nil)
@@ -97,7 +97,7 @@ class SessionManager: ObservableObject {
                 }
             }
         } catch {
-            print("Login error: \(error.localizedDescription)")
+            // print("Login error: \(error.localizedDescription)")
             return APIErrorResponse(message: error.localizedDescription, errors: nil)
         }
     }
@@ -135,7 +135,7 @@ class SessionManager: ObservableObject {
             let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: presenting)
             // Usar accessToken en lugar de idToken
             let googleToken = result.user.accessToken.tokenString
-            print("DEBUG: Google accessToken: \(googleToken)")
+            // print("DEBUG: Google accessToken: \(googleToken)")
             return await socialLogin(token: googleToken)
         } catch {
             return error.localizedDescription
@@ -153,7 +153,7 @@ class SessionManager: ObservableObject {
         
         // Debug: Imprimir lo que se envía
         if let bodyString = String(data: request.httpBody ?? Data(), encoding: .utf8) {
-            print("DEBUG: socialLogin request body: \(bodyString)")
+            // print("DEBUG: socialLogin request body: \(bodyString)")
         }
         
         do {
@@ -161,12 +161,12 @@ class SessionManager: ObservableObject {
             
             // Debug: Imprimir respuesta
             if let responseString = String(data: data, encoding: .utf8) {
-                print("DEBUG: socialLogin response: \(responseString)")
+                // print("DEBUG: socialLogin response: \(responseString)")
             }
             
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
-                print("DEBUG: socialLogin error status code: \(statusCode)")
+                // print("DEBUG: socialLogin error status code: \(statusCode)")
                 return "Error del servidor"
             }
             let auth = try JSONDecoder().decode(AuthResponse.self, from: data)
@@ -185,7 +185,7 @@ class SessionManager: ObservableObject {
             }
             return nil
         } catch {
-            print("DEBUG: socialLogin catch error: \(error.localizedDescription)")
+            // print("DEBUG: socialLogin catch error: \(error.localizedDescription)")
             return error.localizedDescription
         }
     }
@@ -217,7 +217,7 @@ class SessionManager: ObservableObject {
                 UserDefaults.standard.set(encoded, forKey: userKey)
             }
         } catch {
-            print("Profile error: \(error.localizedDescription)")
+            // print("Profile error: \(error.localizedDescription)")
         }
     }
 }

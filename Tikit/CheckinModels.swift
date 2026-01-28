@@ -6,6 +6,7 @@ struct CheckinResponse: Codable {
         let firstName: String
         let lastName: String
         let email: String
+        let registrantType: RegistrantType?
 
         var fullName: String {
             "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
