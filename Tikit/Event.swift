@@ -69,9 +69,9 @@ struct SessionRegistrantType: Codable, Identifiable {
     let id: Int
     let registrantType: RegistrantType?
     let price: Int
-    let stock: Int
+    let stock: Int?
     let used: Int?
-    let available: Int
+    let available: Int?
     let isActive: Bool
     let registered: Int?
     let checkins: Int?
@@ -91,7 +91,7 @@ struct SessionRegistrantType: Codable, Identifiable {
         case attendancePercentage
     }
     
-    init(id: Int, registrantType: RegistrantType?, price: Int, stock: Int, used: Int?, available: Int, isActive: Bool, registered: Int?, checkins: Int?, attendancePercentage: Double?) {
+    init(id: Int, registrantType: RegistrantType?, price: Int, stock: Int?, used: Int?, available: Int?, isActive: Bool, registered: Int?, checkins: Int?, attendancePercentage: Double?) {
         self.id = id
         self.registrantType = registrantType
         self.price = price
@@ -117,9 +117,9 @@ struct SessionRegistrantType: Codable, Identifiable {
         }
         
         price = try container.decode(Int.self, forKey: .price)
-        stock = try container.decode(Int.self, forKey: .stock)
+        stock = try? container.decode(Int.self, forKey: .stock)
         used = try? container.decode(Int.self, forKey: .used)
-        available = try container.decode(Int.self, forKey: .available)
+        available = try? container.decode(Int.self, forKey: .available)
         isActive = try container.decode(Bool.self, forKey: .isActive)
         registered = try? container.decode(Int.self, forKey: .registered)
         checkins = try? container.decode(Int.self, forKey: .checkins)
@@ -132,9 +132,9 @@ struct SessionRegistrantType: Codable, Identifiable {
         try container.encodeIfPresent(registrantType?.id, forKey: .registrantTypeId)
         try container.encodeIfPresent(registrantType?.name, forKey: .registrantTypeName)
         try container.encode(price, forKey: .price)
-        try container.encode(stock, forKey: .stock)
+        try container.encodeIfPresent(stock, forKey: .stock)
         try container.encodeIfPresent(used, forKey: .used)
-        try container.encode(available, forKey: .available)
+        try container.encodeIfPresent(available, forKey: .available)
         try container.encode(isActive, forKey: .isActive)
         try container.encodeIfPresent(registered, forKey: .registered)
         try container.encodeIfPresent(checkins, forKey: .checkins)

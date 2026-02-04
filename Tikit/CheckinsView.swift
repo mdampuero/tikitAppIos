@@ -18,7 +18,14 @@ struct CheckinsView: View {
     @State private var isSuccess = false
     @State private var selectedCheckin: CheckinData?
     @State private var checkinError: CheckinError?
+    @State private var showCategoryFilter = false
+    @State private var selectedCategoryIds: Set<Int> = []
+    @State private var allCategoriesSelected = true
     private let logger = Logger(subsystem: "com.tikit", category: "CheckinsView")
+    
+    private var availableCategories: [SessionRegistrantType] {
+        session.registrantTypes?.filter { $0.isActive } ?? []
+    }
     
     private var totalCheckinsInSession: Int {
         checkins.count
@@ -166,6 +173,22 @@ struct CheckinsView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle("Check-ins")
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: { showCategoryFilter = true }) {
+                    Image(systemName: "slider.horizontal.3")
+                        .foregroundColor(.brandPrimary)
+                }
+            }
+        }
+        .sheet(isPresented: $showCategoryFilter) {
+            CategoryFilterView(
+                categories: availableCategories,
+                selectedCategoryIds: $selectedCategoryIds,
+                allCategoriesSelected: $allCategoriesSelected,
+                sessionId: session.id
+            )
+        }
         .fullScreenCover(isPresented: $isShowingScanner) {
             QRScannerView(
                 completion: { code in
@@ -223,7 +246,26 @@ struct CheckinsView: View {
             )
         }
         .onAppear {
+            loadSavedCategoryFilter()
             Task { await fetchCheckins() }
+        }
+    }
+    
+    private func loadSavedCategoryFilter() {
+        let key = "categoryFilter_\(session.id)"
+        if let savedData = UserDefaults.standard.data(forKey: key),
+           let savedIds = try? JSONDecoder().decode([Int].self, from: savedData) {
+            if savedIds.isEmpty {
+                allCategoriesSelected = true
+                selectedCategoryIds = Set(availableCategories.compactMap { $0.registrantType?.id })
+            } else {
+                selectedCategoryIds = Set(savedIds)
+                allCategoriesSelected = selectedCategoryIds.count == availableCategories.count
+            }
+        } else {
+            // Por defecto todas las categorías
+            allCategoriesSelected = true
+            selectedCategoryIds = Set(availableCategories.compactMap { $0.registrantType?.id })
         }
     }
     
@@ -277,7 +319,9 @@ struct CheckinsView: View {
             "Guest is not registered in this session": "El invitado no está registrado en esta sesión",
             "guest is not registered in this session": "El invitado no está registrado en esta sesión",
             "Guest has already checked in for this session": "El invitado ya ha realizado check-in en esta sesión",
-            "guest has already checked in for this session": "El invitado ya ha realizado check-in en esta sesión"
+            "guest has already checked in for this session": "El invitado ya ha realizado check-in en esta sesión",
+            "This ticket access category is not valid for this entry point": "Esta categoría de acceso no es válida para este punto de entrada",
+            "this ticket access category is not valid for this entry point": "Esta categoría de acceso no es válida para este punto de entrada"
         ]
         
         // Buscar coincidencia exacta
@@ -306,7 +350,13 @@ struct CheckinsView: View {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         
-        let body: [String: Any] = ["event": eventID, "eventSession": session.id, "guest": encryptedCode]
+        let categoryIdsArray = allCategoriesSelected ? [] : Array(selectedCategoryIds)
+        let body: [String: Any] = [
+            "event": eventID,
+            "eventSession": session.id,
+            "guest": encryptedCode,
+            "registrantTypeIds": categoryIdsArray
+        ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         
         // Log de la request
@@ -399,22 +449,27 @@ struct CheckinsView: View {
     }
     
     private func formatDateTime(startDate: String, startTime: String?) -> String {
-        let formatter = ISO8601DateFormatter()
-        guard let date = formatter.date(from: startDate) else { return startDate }
+        // Parsear la fecha en formato yyyy-MM-dd
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        dateFormatter.locale = Locale(identifier: "es_ES")
         
+        guard let date = dateFormatter.date(from: startDate) else { return startDate }
+        
+        // Formatear la fecha como "dd MMM yyyy"
         let dateDisplay = DateFormatter()
         dateDisplay.dateFormat = "dd MMM yyyy"
         dateDisplay.locale = Locale(identifier: "es_ES")
         let formattedDate = dateDisplay.string(from: date)
         
-        // Si hay hora, extraerla y mostrar
-        if let timeString = startTime {
-            let timeFormatter = ISO8601DateFormatter()
-            if let timeDate = timeFormatter.date(from: timeString) {
-                let timeDisplay = DateFormatter()
-                timeDisplay.dateFormat = "HH:mm"
-                let formattedTime = timeDisplay.string(from: timeDate)
-                return "\(formattedDate) \(formattedTime)"
+        // Si hay hora, extraerla y mostrar (viene en formato HH:mm:ss)
+        if let timeString = startTime, !timeString.isEmpty {
+            // Extraer solo HH:mm del formato HH:mm:ss
+            let timeComponents = timeString.split(separator: ":")
+            if timeComponents.count >= 2 {
+                let hour = timeComponents[0]
+                let minute = timeComponents[1]
+                return "\(formattedDate) a las \(hour):\(minute)"
             }
         }
         

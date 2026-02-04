@@ -394,7 +394,7 @@ struct SessionCard: View {
                                     .foregroundColor(.secondary)
                             }
                             
-                            // Barra de progreso (checkins sobre registrados)
+                            // Barra de progreso semaforizada (checkins sobre registrados)
                             GeometryReader { geometry in
                                 ZStack(alignment: .leading) {
                                     RoundedRectangle(cornerRadius: 4)
@@ -402,7 +402,7 @@ struct SessionCard: View {
                                         .frame(height: 6)
                                     
                                     RoundedRectangle(cornerRadius: 4)
-                                        .fill(Color.green)
+                                        .fill(progressColor(registrant))
                                         .frame(width: progressWidth(registrant, containerWidth: geometry.size.width), height: 6)
                                 }
                             }
@@ -428,22 +428,27 @@ struct SessionCard: View {
     }
     
     private func formatDateTime(startDate: String, startTime: String?) -> String {
-        let formatter = ISO8601DateFormatter()
-        guard let date = formatter.date(from: startDate) else { return startDate }
+        // Parsear la fecha en formato yyyy-MM-dd
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        dateFormatter.locale = Locale(identifier: "es_ES")
         
+        guard let date = dateFormatter.date(from: startDate) else { return startDate }
+        
+        // Formatear la fecha como "dd MMM yyyy"
         let dateDisplay = DateFormatter()
         dateDisplay.dateFormat = "dd MMM yyyy"
         dateDisplay.locale = Locale(identifier: "es_ES")
         let formattedDate = dateDisplay.string(from: date)
         
-        // Si hay hora, extraerla y mostrar
-        if let timeString = startTime {
-            let timeFormatter = ISO8601DateFormatter()
-            if let timeDate = timeFormatter.date(from: timeString) {
-                let timeDisplay = DateFormatter()
-                timeDisplay.dateFormat = "HH:mm"
-                let formattedTime = timeDisplay.string(from: timeDate)
-                return "\(formattedDate) \(formattedTime)"
+        // Si hay hora, extraerla y mostrar (viene en formato HH:mm:ss)
+        if let timeString = startTime, !timeString.isEmpty {
+            // Extraer solo HH:mm del formato HH:mm:ss
+            let timeComponents = timeString.split(separator: ":")
+            if timeComponents.count >= 2 {
+                let hour = timeComponents[0]
+                let minute = timeComponents[1]
+                return "\(formattedDate) a las \(hour):\(minute)"
             }
         }
         
@@ -456,6 +461,24 @@ struct SessionCard: View {
         let registeredFloat = CGFloat(registered)
         let percentage = checkins / registeredFloat
         return percentage * containerWidth
+    }
+    
+    private func progressColor(_ registrant: SessionRegistrantType) -> Color {
+        guard let registered = registrant.registered, registered > 0 else { return .gray }
+        let checkins = registrant.checkins ?? 0
+        let percentage = Double(checkins) / Double(registered) * 100
+        
+        // Semaforización:
+        // 0-49%: Rojo (baja asistencia)
+        // 50-79%: Naranja (asistencia moderada)
+        // 80-100%: Verde (buena asistencia)
+        if percentage >= 80 {
+            return .green
+        } else if percentage >= 50 {
+            return .orange
+        } else {
+            return .red
+        }
     }
 }
 

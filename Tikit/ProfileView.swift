@@ -10,15 +10,10 @@ struct ProfileView: View {
         return full.isEmpty ? (session.user?.email ?? "Tu cuenta") : full
     }
 
-    private var subtitle: String {
-        guard let role = session.user?.role, !role.isEmpty else {
-            return session.user?.email ?? ""
-        }
-        // Ocultar role_admin para evitar mostrar privilegios internos
-        if role.lowercased() == "role_admin" {
-            return session.user?.email ?? ""
-        }
-        return role.capitalized
+    private var appVersion: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
+        return "v\(version) (\(build))"
     }
 
     var body: some View {
@@ -51,11 +46,9 @@ struct ProfileView: View {
                 .font(.title2.weight(.semibold))
                 .foregroundColor(.white)
                 .multilineTextAlignment(.center)
-            if !subtitle.isEmpty {
-                Text(subtitle)
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.8))
-            }
+            Text(appVersion)
+                .font(.subheadline)
+                .foregroundColor(.white.opacity(0.8))
         }
         .padding(.top, 32)
         .padding(.bottom, 8)
