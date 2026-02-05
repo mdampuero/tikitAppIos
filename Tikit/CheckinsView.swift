@@ -6,6 +6,7 @@ struct CheckinsView: View {
     let session: EventSession
     let eventID: Int
     let eventName: String
+    var onLogout: (() -> Void)? = nil // Callback para sesión temporal
     @EnvironmentObject var sessionManager: SessionManager
     @State private var checkins: [CheckinData] = []
     @State private var isLoading = false
@@ -21,6 +22,7 @@ struct CheckinsView: View {
     @State private var showCategoryFilter = false
     @State private var selectedCategoryIds: Set<Int> = []
     @State private var allCategoriesSelected = true
+    @State private var showLogoutConfirmation = false
     private let logger = Logger(subsystem: "com.tikit", category: "CheckinsView")
     
     private var availableCategories: [SessionRegistrantType] {
@@ -36,6 +38,26 @@ struct CheckinsView: View {
         return registrantTypes.reduce(0) { $0 + ($1.registered ?? 0) }
     }
     
+    // Obtener token (de sesión normal o API para sesión temporal)
+    private func getAuthToken() async -> String? {
+        // Si hay sesión normal, usar ese token
+        if let token = sessionManager.token {
+            return token
+        }
+        
+        // Si es sesión temporal, obtener token de API
+        if onLogout != nil {
+            do {
+                return try await SessionCodeManager.shared.loginWithAPICredentials()
+            } catch {
+                print("❌ Error obteniendo token de API: \(error.localizedDescription)")
+                return nil
+            }
+        }
+        
+        return nil
+    }
+    
     struct CheckinError: Identifiable {
         let id = UUID()
         let title: String
@@ -46,7 +68,14 @@ struct CheckinsView: View {
         ZStack {
             VStack(spacing: 0) {
                 // Header compacto con info de sesión
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 12) {
+                    // Nombre del evento
+                    Text(eventName)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .textCase(.uppercase)
+                        .tracking(0.5)
+                    
                     // Nombre de sesión
                     HStack(spacing: 8) {
                         Circle()
@@ -174,12 +203,28 @@ struct CheckinsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle("Check-ins")
         .toolbar {
+            if let onLogout = onLogout {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { showLogoutConfirmation = true }) {
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                            .foregroundColor(.red)
+                    }
+                }
+            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: { showCategoryFilter = true }) {
                     Image(systemName: "slider.horizontal.3")
                         .foregroundColor(.brandPrimary)
                 }
             }
+        }
+        .alert("Cerrar sesión", isPresented: $showLogoutConfirmation) {
+            Button("Cancelar", role: .cancel) {}
+            Button("Salir", role: .destructive) {
+                onLogout?()
+            }
+        } message: {
+            Text("¿Está seguro que desea cerrar la sesión temporal? Deberá ingresar un nuevo código para acceder nuevamente.")
         }
         .sheet(isPresented: $showCategoryFilter) {
             CategoryFilterView(
@@ -270,16 +315,26 @@ struct CheckinsView: View {
     }
     
     private func fetchCheckins() async {
-        guard let token = sessionManager.token, !isLoading else { return }
+        guard !isLoading else { return }
+        
+        guard let token = await getAuthToken() else {
+            print("❌ No hay token disponible para fetchCheckins")
+            return
+        }
+        
         isLoading = true
         
         let filter = "[{\"field\":\"e.event\",\"operator\":\"=\",\"value\":\(eventID)},{\"field\":\"e.eventSession\",\"operator\":\"=\",\"value\":\(session.id)}]"
         let encodedFilter = filter.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let urlString = "\(APIConstants.baseURL)checkins?page=1&query=&limit=100&order=id:DESC&filter=\(encodedFilter)"
         
-        // print("DEBUG: Fetching checkins from endpoint: \(urlString)")
+        print("📡 Fetching checkins from endpoint: \(urlString)")
         
-        guard let url = URL(string: urlString) else { isLoading = false; return }
+        guard let url = URL(string: urlString) else {
+            print("❌ URL inválida: \(urlString)")
+            isLoading = false
+            return
+        }
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -289,17 +344,28 @@ struct CheckinsView: View {
             let (data, response) = try await NetworkManager.shared.dataRequest(for: request)
             
             if let responseString = String(data: data, encoding: .utf8) {
-                // print("DEBUG: Checkins response: \(responseString)")
+                print("✅ Checkins response: \(responseString)")
             }
             
-            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+            guard let http = response as? HTTPURLResponse else {
+                print("❌ Respuesta no es HTTPURLResponse")
                 isLoading = false
                 return
             }
+            
+            print("📊 Status code: \(http.statusCode)")
+            
+            if http.statusCode != 200 {
+                print("❌ Status code no es 200")
+                isLoading = false
+                return
+            }
+            
             let result = try JSONDecoder().decode(CheckinsResponse.self, from: data)
             checkins = result.data
+            print("✅ Checkins cargados: \(checkins.count)")
         } catch {
-            // print("Error fetching checkins: \(error.localizedDescription)")
+            print("❌ Error fetching checkins: \(error.localizedDescription)")
         }
         isLoading = false
     }
@@ -341,9 +407,15 @@ struct CheckinsView: View {
     }
     
     private func registerCheckin(encryptedCode: String) async {
-        guard let token = sessionManager.token else { return }
+        guard let token = await getAuthToken() else {
+            print("❌ No hay token disponible para registerCheckin")
+            return
+        }
         
-        guard let url = URL(string: APIConstants.baseURL + "checkins/register") else { return }
+        guard let url = URL(string: APIConstants.baseURL + "checkins/register") else {
+            print("❌ URL inválida para checkins/register")
+            return
+        }
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -360,27 +432,30 @@ struct CheckinsView: View {
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         
         // Log de la request
-        log("--- INICIO LOG REQUEST CHECKIN REGISTER ---")
-        log("URL: \(url.absoluteString)")
-        log("Method: \(request.httpMethod ?? "N/A")")
-        log("Headers: \(request.allHTTPHeaderFields ?? [:])")
+        print("📡 --- INICIO LOG REQUEST CHECKIN REGISTER ---")
+        print("📡 URL: \(url.absoluteString)")
+        print("📡 Method: \(request.httpMethod ?? "N/A")")
+        print("📡 Headers: \(request.allHTTPHeaderFields ?? [:])")
         if let bodyData = request.httpBody, let bodyString = String(data: bodyData, encoding: .utf8) {
-            log("Payload: \(bodyString)")
+            print("📡 Payload: \(bodyString)")
         } else {
-            log("Payload: (empty)")
+            print("📡 Payload: (empty)")
         }
-        log("--- FIN LOG REQUEST CHECKIN REGISTER ---")
+        print("📡 --- FIN LOG REQUEST CHECKIN REGISTER ---")
         
         do {
             let (data, response) = try await NetworkManager.shared.dataRequest(for: request)
             
             // Log de la respuesta
             if let responseString = String(data: data, encoding: .utf8) {
-                log("Response status code: \((response as? HTTPURLResponse)?.statusCode ?? 0)")
-                log("Response body: \(responseString)")
+                print("✅ Response status code: \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+                print("✅ Response body: \(responseString)")
             }
             
-            guard let http = response as? HTTPURLResponse else { return }
+            guard let http = response as? HTTPURLResponse else {
+                print("❌ Respuesta no es HTTPURLResponse")
+                return
+            }
             
             let decoder = JSONDecoder()
             

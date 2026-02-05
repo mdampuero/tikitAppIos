@@ -271,18 +271,24 @@ struct LoginView: View {
             return
         }
         
-        if sessionCode.count < 6 {
-            sessionCodeError = "El código debe tener al menos 6 caracteres"
-            return
-        }
-        
         isLoading = true
         
-        // TODO: Implementar la validación del código con el backend
-        // Por ahora solo mostramos un mensaje
-        await Task.sleep(1_000_000_000) // Simula 1 segundo de carga
+        do {
+            // Validar el código con la API
+            _ = try await SessionCodeManager.shared.validateSessionCode(sessionCode.trimmingCharacters(in: .whitespacesAndNewlines))
+            
+            // Éxito - la redirección se manejará automáticamente en ContentView
+            // El ContentView detectará la sesión temporal y navegará a CheckinsView
+            
+        } catch let error as NSError {
+            // Manejar diferentes tipos de errores
+            if error.code == 404 {
+                sessionCodeError = "Código de sesión no encontrado"
+            } else {
+                sessionCodeError = error.localizedDescription
+            }
+        }
         
-        showToast("Validación del código en desarrollo")
         isLoading = false
     }
 
