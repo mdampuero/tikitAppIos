@@ -4,18 +4,27 @@ import UIKit
 struct LoginView: View {
     @EnvironmentObject var session: SessionManager
     @Environment(\.colorScheme) var colorScheme
-    @State private var email = ""
-    @State private var password = ""
-    @State private var showPassword = false
-    @State private var emailError: String?
-    @State private var passwordError: String?
+    
+    // MARK: - Campos de sesión temporal (nuevos)
+    @State private var sessionCode = ""
+    @State private var sessionCodeError: String?
+    @State private var showQRScanner = false
+    
+    // MARK: - Campos de login tradicional (comentados)
+    // @State private var email = ""
+    // @State private var password = ""
+    // @State private var showPassword = false
+    // @State private var emailError: String?
+    // @State private var passwordError: String?
+    
     @State private var toastMessage: String?
     @State private var isLoading = false
     @FocusState private var focusedField: Field?
 
     private enum Field: Hashable {
-        case email
-        case password
+        case sessionCode
+        // case email
+        // case password
     }
 
     var body: some View {
@@ -34,10 +43,7 @@ struct LoginView: View {
                             .font(.title2)
                             .bold()
 
-                        Text("Tu administrador de eventos")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-
+                        /* COMENTADO: Botón de Google
                         Button(action: handleGoogle) {
                             HStack(spacing: 8) {
                                 Image("GoogleIcon")
@@ -57,9 +63,95 @@ struct LoginView: View {
                         .clipShape(Capsule())
                         .disabled(isLoading)
                         .padding(.top, 24)
+                        */
                     }
                     .padding(.horizontal, 24)
 
+                    // MARK: - Nueva interfaz de código de sesión
+                    VStack(alignment: .center, spacing: 16) {
+                        // Leyenda explicativa
+                        VStack(alignment: .center, spacing: 8) {
+                            Text("Acceso temporal para check-ins")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            
+                            Text("Ingrese el código de sesión generado desde la plataforma web de Tikit. Este código le permitirá realizar check-ins de invitados durante las próximas 6 horas de manera segura y temporal.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .multilineTextAlignment(.center)
+                                .padding(.bottom, 8)
+                        }
+                        
+                        // Input de código de sesión
+                        VStack(alignment: .center, spacing: 4) {
+                            ZStack {
+                                HStack {
+                                    ZStack(alignment: .leading) {
+                                        if sessionCode.isEmpty && focusedField != .sessionCode {
+                                            Text("Código de sesión")
+                                                .foregroundColor(.gray)
+                                                .padding(.leading, 16)
+                                        }
+                                        TextField("", text: $sessionCode)
+                                            .focused($focusedField, equals: .sessionCode)
+                                            .autocapitalization(.allCharacters)
+                                            .padding()
+                                            .padding(.trailing, 40)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    // Botón de escanear QR
+                                    Button(action: {
+                                        showQRScanner = true
+                                    }) {
+                                        Image(systemName: "qrcode.viewfinder")
+                                            .foregroundColor(.brandPrimary)
+                                            .font(.system(size: 24))
+                                            .frame(width: 44, height: 44)
+                                    }
+                                    .disabled(isLoading)
+                                    .padding(.trailing, 8)
+                                }
+                            }
+                            .background(Color(.secondarySystemBackground))
+                            .cornerRadius(10)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(sessionCodeError != nil && focusedField != .sessionCode ? Color.red : Color.clear, lineWidth: 1)
+                            )
+                            .disabled(isLoading)
+                            
+                            if let error = sessionCodeError {
+                                Text(error)
+                                    .foregroundColor(.red)
+                                    .font(.footnote)
+                            }
+                        }
+                        
+                        // Botón de validar
+                        Button(action: { Task { await handleValidateSessionCode() } }) {
+                            Group {
+                                if isLoading {
+                                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                } else {
+                                    Text("Validar código")
+                                }
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.brandPrimary)
+                            .clipShape(Capsule())
+                        }
+                        .padding(.top, 8)
+                        .disabled(isLoading)
+                    }
+                    .padding(.horizontal, 40)
+                    .padding(.top, 24)
+                    
+                    /* COMENTADO: Formulario de login tradicional
                     VStack(alignment: .leading, spacing: 16) {
                         VStack(alignment: .leading, spacing: 4) {
                             TextField("", text: $email)
@@ -135,6 +227,8 @@ struct LoginView: View {
                     }
                     .padding(.horizontal, 40)
                     .padding(.top, 24)
+                    */
+                    
                     Spacer()
                 }
             }
@@ -152,8 +246,47 @@ struct LoginView: View {
                 .transition(.opacity)
             }
         }
+        .sheet(isPresented: $showQRScanner) {
+            QRScannerView(
+                completion: { scannedCode in
+                    sessionCode = scannedCode
+                    showQRScanner = false
+                    sessionCodeError = nil
+                },
+                onCancel: {
+                    showQRScanner = false
+                }
+            )
+            .ignoresSafeArea()
+        }
     }
 
+    // MARK: - Nueva función para validar código de sesión
+    @MainActor
+    func handleValidateSessionCode() async {
+        sessionCodeError = nil
+        
+        if sessionCode.isEmpty {
+            sessionCodeError = "El código de sesión es requerido"
+            return
+        }
+        
+        if sessionCode.count < 6 {
+            sessionCodeError = "El código debe tener al menos 6 caracteres"
+            return
+        }
+        
+        isLoading = true
+        
+        // TODO: Implementar la validación del código con el backend
+        // Por ahora solo mostramos un mensaje
+        await Task.sleep(1_000_000_000) // Simula 1 segundo de carga
+        
+        showToast("Validación del código en desarrollo")
+        isLoading = false
+    }
+
+    /* COMENTADO: Función de login tradicional
     @MainActor
     func handleLogin() async {
         if email.isEmpty {
@@ -187,6 +320,7 @@ struct LoginView: View {
             }
         }
     }
+    */
 
     func showToast(_ message: String) {
         toastMessage = message
@@ -195,13 +329,16 @@ struct LoginView: View {
         }
     }
 
+    /* COMENTADO: Validación de email (no se necesita por ahora)
     private func isValidEmail(_ email: String) -> Bool {
         let regex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"
         let predicate = NSPredicate(format: "SELF MATCHES %@", regex)
         return predicate.evaluate(with: email)
     }
+    */
 }
 
+/* COMENTADO: Extensión placeholder (ya no se usa)
 extension View {
     func placeholder<Content: View>(when shouldShow: Bool, alignment: Alignment = .leading, @ViewBuilder placeholder: () -> Content) -> some View {
         ZStack(alignment: alignment) {
@@ -210,3 +347,4 @@ extension View {
         }
     }
 }
+*/
