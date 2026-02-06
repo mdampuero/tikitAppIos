@@ -36,6 +36,8 @@ struct TemporarySessionData: Codable {
     let endDate: String
     let startTime: String
     let endTime: String
+    let registrantTypes: [SessionRegistrantType]
+    let totalRegistered: Int
     
     var isExpired: Bool {
         return Date() > expirationDate
@@ -54,6 +56,7 @@ class SessionCodeManager {
     // MARK: - Guardar sesión temporal
     func saveTemporarySession(_ response: SessionCodeResponse, code: String) {
         let expirationDate = Date().addingTimeInterval(6 * 60 * 60) // 6 horas
+        let totalRegistered = response.registrantTypes.reduce(0) { $0 + ($1.registered ?? 0) }
         
         let sessionData = TemporarySessionData(
             sessionId: response.id,
@@ -65,7 +68,9 @@ class SessionCodeManager {
             startDate: response.startDate,
             endDate: response.endDate,
             startTime: response.startTime,
-            endTime: response.endTime
+            endTime: response.endTime,
+            registrantTypes: response.registrantTypes,
+            totalRegistered: totalRegistered
         )
         
         if let encoded = try? JSONEncoder().encode(sessionData) {

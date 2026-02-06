@@ -6,6 +6,7 @@ struct CheckinsView: View {
     let session: EventSession
     let eventID: Int
     let eventName: String
+    var totalRegistered: Int? = nil  // Parámetro adicional para sesiones temporales
     var onLogout: (() -> Void)? = nil // Callback para sesión temporal
     @EnvironmentObject var sessionManager: SessionManager
     @State private var checkins: [CheckinData] = []
@@ -34,6 +35,11 @@ struct CheckinsView: View {
     }
     
     private var totalRegisteredInSession: Int {
+        // Si se proporciona totalRegistered (sesión temporal), usar ese valor
+        if let totalRegistered = totalRegistered {
+            return totalRegistered
+        }
+        // Si no, calcular desde los registrantTypes
         guard let registrantTypes = session.registrantTypes else { return 0 }
         return registrantTypes.reduce(0) { $0 + ($1.registered ?? 0) }
     }
@@ -207,14 +213,14 @@ struct CheckinsView: View {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { showLogoutConfirmation = true }) {
                         Image(systemName: "rectangle.portrait.and.arrow.right")
-                            .foregroundColor(.red)
+                            .foregroundColor(.white)
                     }
                 }
             }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: { showCategoryFilter = true }) {
                     Image(systemName: "slider.horizontal.3")
-                        .foregroundColor(.brandPrimary)
+                        .foregroundColor(.white)
                 }
             }
         }
@@ -314,15 +320,40 @@ struct CheckinsView: View {
         }
     }
     
+    private func getCacheKey() -> String {
+        return "checkins_cache_\(eventID)_\(session.id)"
+    }
+    
+    private func loadCheckinsFromCache() {
+        let cacheKey = getCacheKey()
+        guard let cachedData = UserDefaults.standard.data(forKey: cacheKey),
+              let cachedCheckins = try? JSONDecoder().decode([CheckinData].self, from: cachedData) else {
+            print("❌ No cached checkins found")
+            return
+        }
+        
+        DispatchQueue.main.async {
+            self.checkins = cachedCheckins
+            print("✅ Checkins cargados desde caché: \(cachedCheckins.count)")
+        }
+    }
+    
+    private func saveCheckinsToCache(_ checkins: [CheckinData]) {
+        let cacheKey = getCacheKey()
+        if let encodedData = try? JSONEncoder().encode(checkins) {
+            UserDefaults.standard.set(encodedData, forKey: cacheKey)
+            print("💾 Checkins guardados en caché: \(checkins.count)")
+        }
+    }
+    
     private func fetchCheckins() async {
-        guard !isLoading else { return }
+        // Cargar del caché primero
+        loadCheckinsFromCache()
         
         guard let token = await getAuthToken() else {
             print("❌ No hay token disponible para fetchCheckins")
             return
         }
-        
-        isLoading = true
         
         let filter = "[{\"field\":\"e.event\",\"operator\":\"=\",\"value\":\(eventID)},{\"field\":\"e.eventSession\",\"operator\":\"=\",\"value\":\(session.id)}]"
         let encodedFilter = filter.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
@@ -332,7 +363,6 @@ struct CheckinsView: View {
         
         guard let url = URL(string: urlString) else {
             print("❌ URL inválida: \(urlString)")
-            isLoading = false
             return
         }
         
@@ -349,7 +379,6 @@ struct CheckinsView: View {
             
             guard let http = response as? HTTPURLResponse else {
                 print("❌ Respuesta no es HTTPURLResponse")
-                isLoading = false
                 return
             }
             
@@ -357,53 +386,23 @@ struct CheckinsView: View {
             
             if http.statusCode != 200 {
                 print("❌ Status code no es 200")
-                isLoading = false
                 return
             }
             
             let result = try JSONDecoder().decode(CheckinsResponse.self, from: data)
-            checkins = result.data
-            print("✅ Checkins cargados: \(checkins.count)")
+            
+            await MainActor.run {
+                self.checkins = result.data
+                self.saveCheckinsToCache(result.data)
+                print("✅ Checkins sincronizados: \(result.data.count)")
+            }
         } catch {
             print("❌ Error fetching checkins: \(error.localizedDescription)")
         }
-        isLoading = false
     }
     
     private func log(_ message: String) {
         logger.debug("\(message, privacy: .public)")
-    }
-    
-    private func translateErrorMessage(_ message: String) -> String {
-        let translations: [String: String] = [
-            "Invalid data": "Datos inválidos",
-            "invalid data": "Datos inválidos",
-            "Not found": "No encontrado",
-            "not found": "No encontrado",
-            "Guest is not registered in this event": "El invitado no está registrado en este evento",
-            "guest is not registered in this event": "El invitado no está registrado en este evento",
-            "Guest is not registered in this session": "El invitado no está registrado en esta sesión",
-            "guest is not registered in this session": "El invitado no está registrado en esta sesión",
-            "Guest has already checked in for this session": "El invitado ya ha realizado check-in en esta sesión",
-            "guest has already checked in for this session": "El invitado ya ha realizado check-in en esta sesión",
-            "This ticket access category is not valid for this entry point": "Esta categoría de acceso no es válida para este punto de entrada",
-            "this ticket access category is not valid for this entry point": "Esta categoría de acceso no es válida para este punto de entrada"
-        ]
-        
-        // Buscar coincidencia exacta
-        if let translated = translations[message] {
-            return translated
-        }
-        
-        // Buscar coincidencia parcial
-        for (key, value) in translations {
-            if message.lowercased().contains(key.lowercased()) {
-                return value
-            }
-        }
-        
-        // Si no hay traducción conocida, mostrar mensaje desconocido
-        return "Mensaje desconocido: \(message)"
     }
     
     private func registerCheckin(encryptedCode: String) async {
@@ -475,7 +474,7 @@ struct CheckinsView: View {
                         showResultAlert = true
                         
                         // Añadir a la lista
-                        checkins.insert(CheckinData(
+                        let newCheckin = CheckinData(
                             id: checkin.id,
                             guest: checkin.guest,
                             eventSession: checkin.eventSession,
@@ -484,18 +483,20 @@ struct CheckinsView: View {
                             longitude: checkin.longitude,
                             createdAt: checkin.createdAt,
                             updatedAt: checkin.updatedAt
-                        ), at: 0)
+                        )
+                        checkins.insert(newCheckin, at: 0)
+                        
+                        // Guardar en caché
+                        self.saveCheckinsToCache(checkins)
                     }
                 }
             default:
                 let apiError = try? decoder.decode(CheckinAPIErrorResponse.self, from: data)
-                let rawErrorMessage = apiError?.message ?? apiError?.error ?? "Error desconocido"
-                let translatedMessage = translateErrorMessage(rawErrorMessage)
+                let errorMessage = apiError?.message ?? apiError?.error ?? "Error desconocido"
                 log("Status code: \(http.statusCode)")
-                log("Raw error message: \(rawErrorMessage)")
-                log("Translated message: \(translatedMessage)")
+                log("Error message: \(errorMessage)")
                 await MainActor.run {
-                    let finalMessage = translatedMessage.isEmpty ? "Error desconocido" : translatedMessage
+                    let finalMessage = errorMessage.isEmpty ? "Error desconocido" : errorMessage
                     log("Setting error with message: \(finalMessage)")
                     checkinError = CheckinError(
                         title: "Error de Check-in",
@@ -627,7 +628,7 @@ struct CheckinCard: View {
 
 #Preview {
     CheckinsView(
-        session: EventSession(id: 1, name: "Sesión Demo", description: nil, createdAt: nil, updatedAt: nil, isDefault: nil, startDate: "2026-03-01T00:00:00+00:00", startTime: nil, endDate: "2026-04-30T00:00:00+00:00", endTime: nil, registrantTypes: nil),
+        session: EventSession(id: 1, name: "Sesión Demo", description: nil, createdAt: nil, updatedAt: nil, isDefault: nil, startDate: "2026-03-01T00:00:00+00:00", startTime: nil, endDate: "2026-04-30T00:00:00+00:00", endTime: nil, registrantTypes: []),
         eventID: 6,
         eventName: "Evento Demo"
     )

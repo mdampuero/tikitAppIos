@@ -95,7 +95,7 @@ struct LoginView: View {
                                         }
                                         TextField("", text: $sessionCode)
                                             .focused($focusedField, equals: .sessionCode)
-                                            .autocapitalization(.allCharacters)
+                                            .keyboardType(.numberPad)
                                             .padding()
                                             .padding(.trailing, 40)
                                     }

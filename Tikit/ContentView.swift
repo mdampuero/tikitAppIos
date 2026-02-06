@@ -63,10 +63,11 @@ struct TemporarySessionCheckinView: View {
                         startTime: sessionData.startTime,
                         endDate: sessionData.endDate,
                         endTime: sessionData.endTime,
-                        registrantTypes: nil
+                        registrantTypes: sessionData.registrantTypes
                     ),
                     eventID: sessionData.eventId,
                     eventName: sessionData.eventName,
+                    totalRegistered: sessionData.totalRegistered,
                     onLogout: {
                         SessionCodeManager.shared.clearTemporarySession()
                         shouldDismiss = true

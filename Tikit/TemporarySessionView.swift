@@ -84,10 +84,11 @@ struct TemporarySessionView: View {
                         startTime: sessionData.startTime,
                         endDate: sessionData.endDate,
                         endTime: sessionData.endTime,
-                        registrantTypes: nil
+                        registrantTypes: sessionData.registrantTypes
                     ),
                     eventID: sessionData.eventId,
-                    eventName: sessionData.eventName
+                    eventName: sessionData.eventName,
+                    totalRegistered: sessionData.totalRegistered
                 )) {
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
