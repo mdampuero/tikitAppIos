@@ -4,11 +4,17 @@ import UIKit
 struct LoginView: View {
     @EnvironmentObject var session: SessionManager
     @Environment(\.colorScheme) var colorScheme
+    @StateObject private var networkMonitor = NetworkMonitor.shared
     
     // MARK: - Campos de sesión temporal (nuevos)
     @State private var sessionCode = ""
     @State private var sessionCodeError: String?
     @State private var showQRScanner = false
+    
+    // MARK: - Toast
+    @State private var toastMessage: ToastMessage?
+    @State private var showToast = false
+    @State private var toastTimer: Timer?
     
     // MARK: - Campos de login tradicional (comentados)
     // @State private var email = ""
@@ -17,7 +23,6 @@ struct LoginView: View {
     // @State private var emailError: String?
     // @State private var passwordError: String?
     
-    @State private var toastMessage: String?
     @State private var isLoading = false
     @FocusState private var focusedField: Field?
 
@@ -233,17 +238,13 @@ struct LoginView: View {
                 }
             }
 
-            if let toast = toastMessage {
+            if showToast, let toast = toastMessage {
                 VStack {
                     Spacer()
-                    Text(toast)
-                        .foregroundColor(.white)
-                        .padding()
-                        .background(Color.black.opacity(0.8))
-                        .cornerRadius(8)
+                    ToastView(toast: toast)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                         .padding(.bottom, 40)
                 }
-                .transition(.opacity)
             }
         }
         .sheet(isPresented: $showQRScanner) {
@@ -252,6 +253,10 @@ struct LoginView: View {
                     sessionCode = scannedCode
                     showQRScanner = false
                     sessionCodeError = nil
+                    // Ejecutar validación automáticamente después de asignar el código
+                    Task {
+                        await handleValidateSessionCode()
+                    }
                 },
                 onCancel: {
                     showQRScanner = false
@@ -268,6 +273,12 @@ struct LoginView: View {
         
         if sessionCode.isEmpty {
             sessionCodeError = "El código de sesión es requerido"
+            return
+        }
+        
+        // Validar conexión a internet
+        if !networkMonitor.isConnected {
+            showToastMessage("No hay conexión a internet", type: .error)
             return
         }
         
@@ -290,6 +301,19 @@ struct LoginView: View {
         }
         
         isLoading = false
+    }
+    
+    private func showToastMessage(_ message: String, type: ToastMessage.ToastType) {
+        toastMessage = ToastMessage(message: message, type: type)
+        showToast = true
+        
+        // Auto-dismiss después de 3 segundos
+        toastTimer?.invalidate()
+        toastTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
+            withAnimation {
+                showToast = false
+            }
+        }
     }
 
     /* COMENTADO: Función de login tradicional
@@ -327,13 +351,6 @@ struct LoginView: View {
         }
     }
     */
-
-    func showToast(_ message: String) {
-        toastMessage = message
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-            toastMessage = nil
-        }
-    }
 
     /* COMENTADO: Validación de email (no se necesita por ahora)
     private func isValidEmail(_ email: String) -> Bool {

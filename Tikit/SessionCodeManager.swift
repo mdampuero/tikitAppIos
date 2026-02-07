@@ -58,6 +58,9 @@ class SessionCodeManager {
         let expirationDate = Date().addingTimeInterval(6 * 60 * 60) // 6 horas
         let totalRegistered = response.registrantTypes.reduce(0) { $0 + ($1.registered ?? 0) }
         
+        // Limpiar cache de checkins antes de guardar nueva sesión
+        clearCheckinsCache()
+        
         let sessionData = TemporarySessionData(
             sessionId: response.id,
             sessionName: response.name,
@@ -101,7 +104,20 @@ class SessionCodeManager {
     // MARK: - Limpiar sesión temporal
     func clearTemporarySession() {
         UserDefaults.standard.removeObject(forKey: sessionDataKey)
+        clearCheckinsCache()
     }
+    
+    // MARK: - Limpiar cache de checkins
+    private func clearCheckinsCache() {
+        // Remover todas las claves de cache de checkins (formato: "checkins_cache_eventId_sessionId")
+        let defaults = UserDefaults.standard
+        if let appDomain = Bundle.main.bundleIdentifier {
+            let keysToRemove = defaults.dictionaryRepresentation().keys.filter { $0.hasPrefix("checkins_cache_") }
+            for key in keysToRemove {
+                defaults.removeObject(forKey: key)
+            }
+        }
+        print("💾 Cache de checkins limpiada")
     
     // MARK: - Validar código de sesión con la API
     @MainActor

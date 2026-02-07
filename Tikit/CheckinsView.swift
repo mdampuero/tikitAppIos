@@ -9,6 +9,7 @@ struct CheckinsView: View {
     var totalRegistered: Int? = nil  // Parámetro adicional para sesiones temporales
     var onLogout: (() -> Void)? = nil // Callback para sesión temporal
     @EnvironmentObject var sessionManager: SessionManager
+    @StateObject private var networkMonitor = NetworkMonitor.shared
     @State private var checkins: [CheckinData] = []
     @State private var isLoading = false
     @State private var isShowingScanner = false
@@ -24,6 +25,9 @@ struct CheckinsView: View {
     @State private var selectedCategoryIds: Set<Int> = []
     @State private var allCategoriesSelected = true
     @State private var showLogoutConfirmation = false
+    @State private var toastMessage: ToastMessage?
+    @State private var showToast = false
+    @State private var toastTimer: Timer?
     private let logger = Logger(subsystem: "com.tikit", category: "CheckinsView")
     
     private var availableCategories: [SessionRegistrantType] {
@@ -205,6 +209,16 @@ struct CheckinsView: View {
                     .padding(20)
                 }
             }
+            
+            // Toast
+            if showToast, let toast = toastMessage {
+                VStack {
+                    Spacer()
+                    ToastView(toast: toast)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .padding(.bottom, 40)
+                }
+            }
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle("Check-ins")
@@ -215,6 +229,7 @@ struct CheckinsView: View {
                         Image(systemName: "rectangle.portrait.and.arrow.right")
                             .foregroundColor(.white)
                     }
+                    .buttonStyle(.plain)
                 }
             }
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -222,6 +237,7 @@ struct CheckinsView: View {
                     Image(systemName: "slider.horizontal.3")
                         .foregroundColor(.white)
                 }
+                .buttonStyle(.plain)
             }
         }
         .alert("Cerrar sesión", isPresented: $showLogoutConfirmation) {
@@ -405,7 +421,26 @@ struct CheckinsView: View {
         logger.debug("\(message, privacy: .public)")
     }
     
+    private func showToastMessage(_ message: String, type: ToastMessage.ToastType) {
+        toastMessage = ToastMessage(message: message, type: type)
+        showToast = true
+        
+        // Auto-dismiss después de 3 segundos
+        toastTimer?.invalidate()
+        toastTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
+            withAnimation {
+                showToast = false
+            }
+        }
+    }
+    
     private func registerCheckin(encryptedCode: String) async {
+        // Validar conexión a internet
+        if !networkMonitor.isConnected {
+            showToastMessage("No hay conexión a internet", type: .error)
+            return
+        }
+        
         guard let token = await getAuthToken() else {
             print("❌ No hay token disponible para registerCheckin")
             return

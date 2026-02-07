@@ -203,6 +203,9 @@ class SessionManager: ObservableObject {
         UserDefaults.standard.removeObject(forKey: refreshTokenKey)
         UserDefaults.standard.removeObject(forKey: userKey)
         isLoggedIn = false
+        
+        // Limpiar cache de checkins al hacer logout
+        SessionCodeManager.shared.clearTemporarySession()
     }
 
     @MainActor
