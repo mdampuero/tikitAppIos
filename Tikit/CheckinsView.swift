@@ -8,6 +8,7 @@ struct CheckinsView: View {
     let eventName: String
     var totalRegistered: Int? = nil  // Parámetro adicional para sesiones temporales
     var onLogout: (() -> Void)? = nil // Callback para sesión temporal
+    var temporarySessionData: TemporarySessionData? = nil // Datos de sesión temporal
     @EnvironmentObject var sessionManager: SessionManager
     @StateObject private var networkMonitor = NetworkMonitor.shared
     @State private var checkins: [CheckinData] = []
@@ -28,6 +29,8 @@ struct CheckinsView: View {
     @State private var toastMessage: ToastMessage?
     @State private var showToast = false
     @State private var toastTimer: Timer?
+    @State private var timeRemaining: String = ""
+    @State private var updateTimer: Timer?
     private let logger = Logger(subsystem: "com.tikit", category: "CheckinsView")
     
     private var availableCategories: [SessionRegistrantType] {
@@ -68,6 +71,21 @@ struct CheckinsView: View {
         return nil
     }
     
+    private func updateTimeRemaining() {
+        guard let tempData = temporarySessionData else { return }
+        let remaining = tempData.timeRemaining
+        
+        if remaining <= 0 {
+            timeRemaining = "Expirada"
+            updateTimer?.invalidate()
+        } else {
+            let hours = Int(remaining) / 3600
+            let minutes = (Int(remaining) % 3600) / 60
+            let seconds = Int(remaining) % 60
+            timeRemaining = String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+        }
+    }
+    
     struct CheckinError: Identifiable {
         let id = UUID()
         let title: String
@@ -95,6 +113,15 @@ struct CheckinsView: View {
                             .font(.headline)
                             .foregroundColor(.primary)
                         Spacer()
+                        
+                        // Cuenta regresiva si es sesión temporal
+                        if temporarySessionData != nil {
+                            Text(timeRemaining)
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.orange)
+                                .monospacedDigit()
+                        }
                     }
                     
                     Divider()
@@ -315,6 +342,17 @@ struct CheckinsView: View {
         .onAppear {
             loadSavedCategoryFilter()
             Task { await fetchCheckins() }
+            
+            // Iniciar timer para actualizar tiempo restante si es sesión temporal
+            if temporarySessionData != nil {
+                updateTimeRemaining()
+                updateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+                    updateTimeRemaining()
+                }
+            }
+        }
+        .onDisappear {
+            updateTimer?.invalidate()
         }
     }
     

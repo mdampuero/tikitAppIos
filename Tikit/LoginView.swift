@@ -293,6 +293,8 @@ struct LoginView: View {
             
         } catch let error as NSError {
             // Manejar diferentes tipos de errores
+            print("❌ Error validando código de sesión: \(error.localizedDescription) (código: \(error.code))")
+            
             if error.code == 404 {
                 sessionCodeError = "Código de sesión no encontrado"
             } else {

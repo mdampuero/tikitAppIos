@@ -6,21 +6,55 @@ struct SessionCodeResponse: Codable {
     let id: Int
     let name: String
     let description: String?
+    let code: String
     let startDate: String
     let endDate: String
     let startTime: String
     let endTime: String
     let isDefault: Bool
     let createdAt: String
-    let updatedAt: String
+    let updatedAt: String?
     let event: SessionEvent
     let registrantTypes: [SessionRegistrantType]
+    
+    // Hacer el decoder flexible para ignorar campos extras
+    enum CodingKeys: String, CodingKey {
+        case id, name, description, code, startDate, endDate, startTime, endTime, isDefault, createdAt, updatedAt, event, registrantTypes
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(Int.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        description = try container.decodeIfPresent(String.self, forKey: .description)
+        code = try container.decode(String.self, forKey: .code)
+        startDate = try container.decode(String.self, forKey: .startDate)
+        endDate = try container.decode(String.self, forKey: .endDate)
+        startTime = try container.decode(String.self, forKey: .startTime)
+        endTime = try container.decode(String.self, forKey: .endTime)
+        isDefault = try container.decodeIfPresent(Bool.self, forKey: .isDefault) ?? false
+        createdAt = try container.decode(String.self, forKey: .createdAt)
+        updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
+        event = try container.decode(SessionEvent.self, forKey: .event)
+        registrantTypes = try container.decodeIfPresent([SessionRegistrantType].self, forKey: .registrantTypes) ?? []
+    }
 }
 
 struct SessionEvent: Codable {
     let id: Int
     let name: String
-    let type: String
+    let type: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, name, type
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(Int.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        type = try container.decodeIfPresent(String.self, forKey: .type)
+    }
 }
 
 // MARK: - Datos de sesión temporal guardados
@@ -31,6 +65,7 @@ struct TemporarySessionData: Codable {
     let sessionCode: String
     let eventId: Int
     let eventName: String
+    let sessionStartTime: Date  // Hora de inicio de la sesión
     let expirationDate: Date
     let startDate: String
     let endDate: String
@@ -41,6 +76,47 @@ struct TemporarySessionData: Codable {
     
     var isExpired: Bool {
         return Date() > expirationDate
+    }
+    
+    var timeRemaining: TimeInterval {
+        return max(0, expirationDate.timeIntervalSince(Date()))
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case sessionId, sessionName, sessionCode, eventId, eventName, sessionStartTime, expirationDate, startDate, endDate, startTime, endTime, registrantTypes, totalRegistered
+    }
+    
+    init(sessionId: Int, sessionName: String, sessionCode: String, eventId: Int, eventName: String, sessionStartTime: Date, expirationDate: Date, startDate: String, endDate: String, startTime: String, endTime: String, registrantTypes: [SessionRegistrantType], totalRegistered: Int) {
+        self.sessionId = sessionId
+        self.sessionName = sessionName
+        self.sessionCode = sessionCode
+        self.eventId = eventId
+        self.eventName = eventName
+        self.sessionStartTime = sessionStartTime
+        self.expirationDate = expirationDate
+        self.startDate = startDate
+        self.endDate = endDate
+        self.startTime = startTime
+        self.endTime = endTime
+        self.registrantTypes = registrantTypes
+        self.totalRegistered = totalRegistered
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        sessionId = try container.decode(Int.self, forKey: .sessionId)
+        sessionName = try container.decode(String.self, forKey: .sessionName)
+        sessionCode = try container.decode(String.self, forKey: .sessionCode)
+        eventId = try container.decode(Int.self, forKey: .eventId)
+        eventName = try container.decode(String.self, forKey: .eventName)
+        sessionStartTime = try container.decode(Date.self, forKey: .sessionStartTime)
+        expirationDate = try container.decode(Date.self, forKey: .expirationDate)
+        startDate = try container.decode(String.self, forKey: .startDate)
+        endDate = try container.decode(String.self, forKey: .endDate)
+        startTime = try container.decode(String.self, forKey: .startTime)
+        endTime = try container.decode(String.self, forKey: .endTime)
+        registrantTypes = try container.decodeIfPresent([SessionRegistrantType].self, forKey: .registrantTypes) ?? []
+        totalRegistered = try container.decodeIfPresent(Int.self, forKey: .totalRegistered) ?? 0
     }
 }
 
@@ -67,6 +143,7 @@ class SessionCodeManager {
             sessionCode: code,
             eventId: response.event.id,
             eventName: response.event.name,
+            sessionStartTime: Date(),
             expirationDate: expirationDate,
             startDate: response.startDate,
             endDate: response.endDate,
@@ -118,67 +195,103 @@ class SessionCodeManager {
             }
         }
         print("💾 Cache de checkins limpiada")
+    }
     
     // MARK: - Validar código de sesión con la API
     @MainActor
     func validateSessionCode(_ code: String) async throws -> SessionCodeResponse {
-        // Paso 1: Obtener token con credenciales de API
-        let token = try await loginWithAPICredentials()
-        
-        // Paso 2: Validar el código de sesión
-        guard let url = URL(string: "\(APIConstants.baseURL)event-sessions/\(code)") else {
-            throw NSError(domain: "SessionCodeManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "URL inválida"])
+            print("🔍 [SessionCodeManager] Iniciando validación de código: \(code)")
+            
+            // Paso 1: Obtener token con credenciales de API
+            print("🔐 [SessionCodeManager] Obteniendo token de API...")
+            let token = try await loginWithAPICredentials()
+            print("✅ [SessionCodeManager] Token obtenido correctamente")
+            
+            // Paso 2: Validar el código de sesión
+            let urlString = "\(APIConstants.baseURL)event-sessions/\(code)"
+            print("🌐 [SessionCodeManager] URL: \(urlString)")
+            
+            guard let url = URL(string: urlString) else {
+                throw NSError(domain: "SessionCodeManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "URL inválida"])
+            }
+            
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            
+            print("📤 [SessionCodeManager] Enviando request GET...")
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let http = response as? HTTPURLResponse else {
+                print("❌ [SessionCodeManager] Respuesta no es HTTPURLResponse")
+                throw NSError(domain: "SessionCodeManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Respuesta inválida del servidor"])
+            }
+            
+            print("📥 [SessionCodeManager] Status Code: \(http.statusCode)")
+            
+            // DEBUG: Imprimir respuesta completa
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("📋 [SessionCodeManager] Respuesta JSON completa:")
+                print("---START JSON---")
+                print(responseString)
+                print("---END JSON---")
+            } else {
+                print("❌ [SessionCodeManager] No se pudo decodificar la respuesta como string")
+            }
+            
+            if http.statusCode == 404 {
+                print("❌ [SessionCodeManager] Código no encontrado (404)")
+                throw NSError(domain: "SessionCodeManager", code: 404, userInfo: [NSLocalizedDescriptionKey: "Código de sesión no encontrado"])
+            }
+            
+            if http.statusCode != 200 {
+                print("❌ [SessionCodeManager] Status code no es 200: \(http.statusCode)")
+                throw NSError(domain: "SessionCodeManager", code: http.statusCode, userInfo: [NSLocalizedDescriptionKey: "Error del servidor"])
+            }
+            
+            print("🔄 [SessionCodeManager] Intentando decodificar JSON...")
+            let sessionResponse = try JSONDecoder().decode(SessionCodeResponse.self, from: data)
+            
+            print("✅ [SessionCodeManager] Decodificación exitosa")
+            // Guardar la sesión temporal
+            saveTemporarySession(sessionResponse, code: code)
+            
+            return sessionResponse
         }
         
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        guard let http = response as? HTTPURLResponse else {
-            throw NSError(domain: "SessionCodeManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Respuesta inválida del servidor"])
-        }
-        
-        if http.statusCode == 404 {
-            throw NSError(domain: "SessionCodeManager", code: 404, userInfo: [NSLocalizedDescriptionKey: "Código de sesión no encontrado"])
-        }
-        
-        if http.statusCode != 200 {
-            throw NSError(domain: "SessionCodeManager", code: http.statusCode, userInfo: [NSLocalizedDescriptionKey: "Error del servidor"])
-        }
-        
-        let sessionResponse = try JSONDecoder().decode(SessionCodeResponse.self, from: data)
-        
-        // Guardar la sesión temporal
-        saveTemporarySession(sessionResponse, code: code)
-        
-        return sessionResponse
-    }
-    
     // MARK: - Login con credenciales de API
     func loginWithAPICredentials() async throws -> String {
-        guard let url = URL(string: "\(APIConstants.baseURL)auth/login") else {
-            throw NSError(domain: "SessionCodeManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "URL inválida"])
+            print("🔐 [SessionCodeManager] Iniciando login con credenciales de API...")
+            
+            guard let url = URL(string: "\(APIConstants.baseURL)auth/login") else {
+                throw NSError(domain: "SessionCodeManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "URL inválida"])
+            }
+            
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            
+            let body: [String: String] = [
+                "email": APIConstants.apiEmail,
+                "password": APIConstants.apiPassword
+            ]
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            
+            print("📤 [SessionCodeManager] Enviando login request...")
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+                print("❌ [SessionCodeManager] Login fallido con status: \(statusCode)")
+                if let errorStr = String(data: data, encoding: .utf8) {
+                    print("   Error response: \(errorStr)")
+                }
+                throw NSError(domain: "SessionCodeManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Error al autenticar con la API"])
+            }
+            
+            print("✅ [SessionCodeManager] Login exitoso, decodificando token...")
+            let authResponse = try JSONDecoder().decode(AuthResponse.self, from: data)
+            print("✅ [SessionCodeManager] Token obtenido: \(authResponse.token.prefix(20))...")
+            return authResponse.token
         }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        let body: [String: String] = [
-            "email": APIConstants.apiEmail,
-            "password": APIConstants.apiPassword
-        ]
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        
-        let (data, response) = try await URLSession.shared.data(for: request)
-        
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-            throw NSError(domain: "SessionCodeManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Error al autenticar con la API"])
-        }
-        
-        let authResponse = try JSONDecoder().decode(AuthResponse.self, from: data)
-        return authResponse.token
-    }
 }

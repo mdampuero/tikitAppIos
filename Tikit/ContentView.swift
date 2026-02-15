@@ -71,7 +71,8 @@ struct TemporarySessionCheckinView: View {
                     onLogout: {
                         SessionCodeManager.shared.clearTemporarySession()
                         shouldDismiss = true
-                    }
+                    },
+                    temporarySessionData: sessionData
                 )
                 .navigationBarBackButtonHidden(true)
                 .opacity(isReady ? 1 : 0)
