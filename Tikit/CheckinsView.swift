@@ -6,7 +6,11 @@ struct CheckinsView: View {
     let session: EventSession
     let eventID: Int
     let eventName: String
+    var totalRegistered: Int? = nil  // Parámetro adicional para sesiones temporales
+    var onLogout: (() -> Void)? = nil // Callback para sesión temporal
+    var temporarySessionData: TemporarySessionData? = nil // Datos de sesión temporal
     @EnvironmentObject var sessionManager: SessionManager
+    @StateObject private var networkMonitor = NetworkMonitor.shared
     @State private var checkins: [CheckinData] = []
     @State private var isLoading = false
     @State private var isShowingScanner = false
@@ -21,6 +25,13 @@ struct CheckinsView: View {
     @State private var showCategoryFilter = false
     @State private var selectedCategoryIds: Set<Int> = []
     @State private var allCategoriesSelected = true
+    @State private var showStatistics = false
+    @State private var showLogoutConfirmation = false
+    @State private var toastMessage: ToastMessage?
+    @State private var showToast = false
+    @State private var toastTimer: Timer?
+    @State private var timeRemaining: String = ""
+    @State private var updateTimer: Timer?
     private let logger = Logger(subsystem: "com.tikit", category: "CheckinsView")
     
     private var availableCategories: [SessionRegistrantType] {
@@ -32,8 +43,48 @@ struct CheckinsView: View {
     }
     
     private var totalRegisteredInSession: Int {
+        // Si se proporciona totalRegistered (sesión temporal), usar ese valor
+        if let totalRegistered = totalRegistered {
+            return totalRegistered
+        }
+        // Si no, calcular desde los registrantTypes
         guard let registrantTypes = session.registrantTypes else { return 0 }
         return registrantTypes.reduce(0) { $0 + ($1.registered ?? 0) }
+    }
+    
+    // Obtener token (de sesión normal o API para sesión temporal)
+    private func getAuthToken() async -> String? {
+        // Si hay sesión normal, usar ese token
+        if let token = sessionManager.token {
+            return token
+        }
+        
+        // Si es sesión temporal, obtener token de API
+        if onLogout != nil {
+            do {
+                return try await SessionCodeManager.shared.loginWithAPICredentials()
+            } catch {
+                print("❌ Error obteniendo token de API: \(error.localizedDescription)")
+                return nil
+            }
+        }
+        
+        return nil
+    }
+    
+    private func updateTimeRemaining() {
+        guard let tempData = temporarySessionData else { return }
+        let remaining = tempData.timeRemaining
+        
+        if remaining <= 0 {
+            timeRemaining = "Expirada"
+            updateTimer?.invalidate()
+        } else {
+            let hours = Int(remaining) / 3600
+            let minutes = (Int(remaining) % 3600) / 60
+            let seconds = Int(remaining) % 60
+            timeRemaining = String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+        }
     }
     
     struct CheckinError: Identifiable {
@@ -46,7 +97,14 @@ struct CheckinsView: View {
         ZStack {
             VStack(spacing: 0) {
                 // Header compacto con info de sesión
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 12) {
+                    // Nombre del evento
+                    Text(eventName)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .textCase(.uppercase)
+                        .tracking(0.5)
+                    
                     // Nombre de sesión
                     HStack(spacing: 8) {
                         Circle()
@@ -56,6 +114,15 @@ struct CheckinsView: View {
                             .font(.headline)
                             .foregroundColor(.primary)
                         Spacer()
+                        
+                        // Cuenta regresiva si es sesión temporal
+                        if temporarySessionData != nil {
+                            Text(timeRemaining)
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.orange)
+                                .monospacedDigit()
+                        }
                     }
                     
                     Divider()
@@ -163,23 +230,57 @@ struct CheckinsView: View {
                             .font(.system(size: 24, weight: .semibold))
                             .foregroundColor(.white)
                             .frame(width: 60, height: 60)
-                            .background(Color.brandPrimary)
+                            .background(Color.brandSecondary)
                             .clipShape(Circle())
                             .shadow(color: Color.black.opacity(0.3), radius: 8, x: 0, y: 4)
                     }
                     .padding(20)
                 }
             }
+            
+            // Toast
+            if showToast, let toast = toastMessage {
+                VStack {
+                    Spacer()
+                    ToastView(toast: toast)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .padding(.bottom, 40)
+                }
+            }
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle("Check-ins")
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { showCategoryFilter = true }) {
-                    Image(systemName: "slider.horizontal.3")
-                        .foregroundColor(.brandPrimary)
+            if let onLogout = onLogout {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { showLogoutConfirmation = true }) {
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                            .foregroundColor(.white)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                Button(action: { showStatistics = true }) {
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .foregroundColor(.white)
+                }
+                .buttonStyle(.plain)
+                
+                Button(action: { showCategoryFilter = true }) {
+                    Image(systemName: "slider.horizontal.3")
+                        .foregroundColor(.white)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .alert("Cerrar sesión", isPresented: $showLogoutConfirmation) {
+            Button("Cancelar", role: .cancel) {}
+            Button("Salir", role: .destructive) {
+                onLogout?()
+            }
+        } message: {
+            Text("¿Está seguro que desea cerrar la sesión temporal? Deberá ingresar un nuevo código para acceder nuevamente.")
         }
         .sheet(isPresented: $showCategoryFilter) {
             CategoryFilterView(
@@ -187,6 +288,15 @@ struct CheckinsView: View {
                 selectedCategoryIds: $selectedCategoryIds,
                 allCategoriesSelected: $allCategoriesSelected,
                 sessionId: session.id
+            )
+        }
+        .sheet(isPresented: $showStatistics) {
+            SessionStatisticsView(
+                session: session,
+                eventName: eventName,
+                totalCheckins: totalCheckinsInSession,
+                totalRegistered: totalRegisteredInSession,
+                temporarySessionData: temporarySessionData
             )
         }
         .fullScreenCover(isPresented: $isShowingScanner) {
@@ -248,6 +358,17 @@ struct CheckinsView: View {
         .onAppear {
             loadSavedCategoryFilter()
             Task { await fetchCheckins() }
+            
+            // Iniciar timer para actualizar tiempo restante si es sesión temporal
+            if temporarySessionData != nil {
+                updateTimeRemaining()
+                updateTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+                    updateTimeRemaining()
+                }
+            }
+        }
+        .onDisappear {
+            updateTimer?.invalidate()
         }
     }
     
@@ -269,17 +390,51 @@ struct CheckinsView: View {
         }
     }
     
+    private func getCacheKey() -> String {
+        return "checkins_cache_\(eventID)_\(session.id)"
+    }
+    
+    private func loadCheckinsFromCache() {
+        let cacheKey = getCacheKey()
+        guard let cachedData = UserDefaults.standard.data(forKey: cacheKey),
+              let cachedCheckins = try? JSONDecoder().decode([CheckinData].self, from: cachedData) else {
+            print("❌ No cached checkins found")
+            return
+        }
+        
+        DispatchQueue.main.async {
+            self.checkins = cachedCheckins
+            print("✅ Checkins cargados desde caché: \(cachedCheckins.count)")
+        }
+    }
+    
+    private func saveCheckinsToCache(_ checkins: [CheckinData]) {
+        let cacheKey = getCacheKey()
+        if let encodedData = try? JSONEncoder().encode(checkins) {
+            UserDefaults.standard.set(encodedData, forKey: cacheKey)
+            print("💾 Checkins guardados en caché: \(checkins.count)")
+        }
+    }
+    
     private func fetchCheckins() async {
-        guard let token = sessionManager.token, !isLoading else { return }
-        isLoading = true
+        // Cargar del caché primero
+        loadCheckinsFromCache()
+        
+        guard let token = await getAuthToken() else {
+            print("❌ No hay token disponible para fetchCheckins")
+            return
+        }
         
         let filter = "[{\"field\":\"e.event\",\"operator\":\"=\",\"value\":\(eventID)},{\"field\":\"e.eventSession\",\"operator\":\"=\",\"value\":\(session.id)}]"
         let encodedFilter = filter.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let urlString = "\(APIConstants.baseURL)checkins?page=1&query=&limit=100&order=id:DESC&filter=\(encodedFilter)"
         
-        // print("DEBUG: Fetching checkins from endpoint: \(urlString)")
+        print("📡 Fetching checkins from endpoint: \(urlString)")
         
-        guard let url = URL(string: urlString) else { isLoading = false; return }
+        guard let url = URL(string: urlString) else {
+            print("❌ URL inválida: \(urlString)")
+            return
+        }
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -289,61 +444,66 @@ struct CheckinsView: View {
             let (data, response) = try await NetworkManager.shared.dataRequest(for: request)
             
             if let responseString = String(data: data, encoding: .utf8) {
-                // print("DEBUG: Checkins response: \(responseString)")
+                print("✅ Checkins response: \(responseString)")
             }
             
-            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-                isLoading = false
+            guard let http = response as? HTTPURLResponse else {
+                print("❌ Respuesta no es HTTPURLResponse")
                 return
             }
+            
+            print("📊 Status code: \(http.statusCode)")
+            
+            if http.statusCode != 200 {
+                print("❌ Status code no es 200")
+                return
+            }
+            
             let result = try JSONDecoder().decode(CheckinsResponse.self, from: data)
-            checkins = result.data
+            
+            await MainActor.run {
+                self.checkins = result.data
+                self.saveCheckinsToCache(result.data)
+                print("✅ Checkins sincronizados: \(result.data.count)")
+            }
         } catch {
-            // print("Error fetching checkins: \(error.localizedDescription)")
+            print("❌ Error fetching checkins: \(error.localizedDescription)")
         }
-        isLoading = false
     }
     
     private func log(_ message: String) {
         logger.debug("\(message, privacy: .public)")
     }
     
-    private func translateErrorMessage(_ message: String) -> String {
-        let translations: [String: String] = [
-            "Invalid data": "Datos inválidos",
-            "invalid data": "Datos inválidos",
-            "Not found": "No encontrado",
-            "not found": "No encontrado",
-            "Guest is not registered in this event": "El invitado no está registrado en este evento",
-            "guest is not registered in this event": "El invitado no está registrado en este evento",
-            "Guest is not registered in this session": "El invitado no está registrado en esta sesión",
-            "guest is not registered in this session": "El invitado no está registrado en esta sesión",
-            "Guest has already checked in for this session": "El invitado ya ha realizado check-in en esta sesión",
-            "guest has already checked in for this session": "El invitado ya ha realizado check-in en esta sesión",
-            "This ticket access category is not valid for this entry point": "Esta categoría de acceso no es válida para este punto de entrada",
-            "this ticket access category is not valid for this entry point": "Esta categoría de acceso no es válida para este punto de entrada"
-        ]
+    private func showToastMessage(_ message: String, type: ToastMessage.ToastType) {
+        toastMessage = ToastMessage(message: message, type: type)
+        showToast = true
         
-        // Buscar coincidencia exacta
-        if let translated = translations[message] {
-            return translated
-        }
-        
-        // Buscar coincidencia parcial
-        for (key, value) in translations {
-            if message.lowercased().contains(key.lowercased()) {
-                return value
+        // Auto-dismiss después de 3 segundos
+        toastTimer?.invalidate()
+        toastTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
+            withAnimation {
+                showToast = false
             }
         }
-        
-        // Si no hay traducción conocida, mostrar mensaje desconocido
-        return "Mensaje desconocido: \(message)"
     }
     
     private func registerCheckin(encryptedCode: String) async {
-        guard let token = sessionManager.token else { return }
+        // Validar conexión a internet
+        if !networkMonitor.isConnected {
+            showToastMessage("No hay conexión a internet", type: .error)
+            return
+        }
         
-        guard let url = URL(string: APIConstants.baseURL + "checkins/register") else { return }
+        guard let token = await getAuthToken() else {
+            print("❌ No hay token disponible para registerCheckin")
+            return
+        }
+        
+        guard let url = URL(string: APIConstants.baseURL + "checkins/register") else {
+            print("❌ URL inválida para checkins/register")
+            return
+        }
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -360,27 +520,30 @@ struct CheckinsView: View {
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         
         // Log de la request
-        log("--- INICIO LOG REQUEST CHECKIN REGISTER ---")
-        log("URL: \(url.absoluteString)")
-        log("Method: \(request.httpMethod ?? "N/A")")
-        log("Headers: \(request.allHTTPHeaderFields ?? [:])")
+        print("📡 --- INICIO LOG REQUEST CHECKIN REGISTER ---")
+        print("📡 URL: \(url.absoluteString)")
+        print("📡 Method: \(request.httpMethod ?? "N/A")")
+        print("📡 Headers: \(request.allHTTPHeaderFields ?? [:])")
         if let bodyData = request.httpBody, let bodyString = String(data: bodyData, encoding: .utf8) {
-            log("Payload: \(bodyString)")
+            print("📡 Payload: \(bodyString)")
         } else {
-            log("Payload: (empty)")
+            print("📡 Payload: (empty)")
         }
-        log("--- FIN LOG REQUEST CHECKIN REGISTER ---")
+        print("📡 --- FIN LOG REQUEST CHECKIN REGISTER ---")
         
         do {
             let (data, response) = try await NetworkManager.shared.dataRequest(for: request)
             
             // Log de la respuesta
             if let responseString = String(data: data, encoding: .utf8) {
-                log("Response status code: \((response as? HTTPURLResponse)?.statusCode ?? 0)")
-                log("Response body: \(responseString)")
+                print("✅ Response status code: \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+                print("✅ Response body: \(responseString)")
             }
             
-            guard let http = response as? HTTPURLResponse else { return }
+            guard let http = response as? HTTPURLResponse else {
+                print("❌ Respuesta no es HTTPURLResponse")
+                return
+            }
             
             let decoder = JSONDecoder()
             
@@ -400,7 +563,7 @@ struct CheckinsView: View {
                         showResultAlert = true
                         
                         // Añadir a la lista
-                        checkins.insert(CheckinData(
+                        let newCheckin = CheckinData(
                             id: checkin.id,
                             guest: checkin.guest,
                             eventSession: checkin.eventSession,
@@ -409,18 +572,20 @@ struct CheckinsView: View {
                             longitude: checkin.longitude,
                             createdAt: checkin.createdAt,
                             updatedAt: checkin.updatedAt
-                        ), at: 0)
+                        )
+                        checkins.insert(newCheckin, at: 0)
+                        
+                        // Guardar en caché
+                        self.saveCheckinsToCache(checkins)
                     }
                 }
             default:
                 let apiError = try? decoder.decode(CheckinAPIErrorResponse.self, from: data)
-                let rawErrorMessage = apiError?.message ?? apiError?.error ?? "Error desconocido"
-                let translatedMessage = translateErrorMessage(rawErrorMessage)
+                let errorMessage = apiError?.message ?? apiError?.error ?? "Error desconocido"
                 log("Status code: \(http.statusCode)")
-                log("Raw error message: \(rawErrorMessage)")
-                log("Translated message: \(translatedMessage)")
+                log("Error message: \(errorMessage)")
                 await MainActor.run {
-                    let finalMessage = translatedMessage.isEmpty ? "Error desconocido" : translatedMessage
+                    let finalMessage = errorMessage.isEmpty ? "Error desconocido" : errorMessage
                     log("Setting error with message: \(finalMessage)")
                     checkinError = CheckinError(
                         title: "Error de Check-in",
@@ -552,7 +717,7 @@ struct CheckinCard: View {
 
 #Preview {
     CheckinsView(
-        session: EventSession(id: 1, name: "Sesión Demo", description: nil, createdAt: nil, updatedAt: nil, isDefault: nil, startDate: "2026-03-01T00:00:00+00:00", startTime: nil, endDate: "2026-04-30T00:00:00+00:00", endTime: nil, registrantTypes: nil),
+        session: EventSession(id: 1, name: "Sesión Demo", description: nil, createdAt: nil, updatedAt: nil, isDefault: nil, startDate: "2026-03-01T00:00:00+00:00", startTime: nil, endDate: "2026-04-30T00:00:00+00:00", endTime: nil, registrantTypes: []),
         eventID: 6,
         eventName: "Evento Demo"
     )

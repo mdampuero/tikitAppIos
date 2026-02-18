@@ -156,6 +156,8 @@ class ScannerViewController: UIViewController, AVCaptureMetadataOutputObjectsDel
             let alert = UIAlertController(title: "Error", message: message, preferredStyle: .alert)
             alert.addAction(UIAlertAction(title: "Aceptar", style: .default) { [weak self] _ in
                 self?.isPresentingAlert = false
+                self?.captureSession?.stopRunning()
+                self?.onCancel?()
             })
             self.present(alert, animated: true)
         }
