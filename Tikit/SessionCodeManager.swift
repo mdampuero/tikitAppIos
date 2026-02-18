@@ -162,6 +162,34 @@ class SessionCodeManager {
         }
     }
     
+    // MARK: - Actualizar sesión temporal silenciosamente (sin notificaciones)
+    func updateTemporarySessionSilently(_ response: SessionCodeResponse) {
+        let totalRegistered = response.registrantTypes.reduce(0) { $0 + ($1.registered ?? 0) }
+        
+        guard let currentSession = getTemporarySession() else { return }
+        
+        let sessionData = TemporarySessionData(
+            sessionId: response.id,
+            sessionName: response.name,
+            sessionCode: currentSession.sessionCode,
+            eventId: response.event.id,
+            eventName: response.event.name,
+            sessionStartTime: currentSession.sessionStartTime,
+            expirationDate: currentSession.expirationDate,
+            startDate: response.startDate,
+            endDate: response.endDate,
+            startTime: response.startTime,
+            endTime: response.endTime,
+            registrantTypes: response.registrantTypes,
+            totalRegistered: totalRegistered
+        )
+        
+        if let encoded = try? JSONEncoder().encode(sessionData) {
+            UserDefaults.standard.set(encoded, forKey: sessionDataKey)
+            // NO disparar notificación - solo actualizar datos silenciosamente
+        }
+    }
+    
     // MARK: - Obtener sesión temporal
     func getTemporarySession() -> TemporarySessionData? {
         guard let data = UserDefaults.standard.data(forKey: sessionDataKey),
@@ -294,4 +322,52 @@ class SessionCodeManager {
             print("✅ [SessionCodeManager] Token obtenido: \(authResponse.token.prefix(20))...")
             return authResponse.token
         }
+    
+    // MARK: - Actualizar datos de sesión silenciosamente
+    @MainActor
+    func refreshSessionDataSilently() async -> TemporarySessionData? {
+        do {
+            guard let currentSession = getTemporarySession() else {
+                print("❌ [SessionCodeManager] No hay sesión temporal activa")
+                return nil
+            }
+            
+            print("🔄 [SessionCodeManager] Actualizando datos de sesión: \(currentSession.sessionCode)")
+            
+            // Obtener token
+            let token = try await loginWithAPICredentials()
+            
+            // Llamar a la API
+            let urlString = "\(APIConstants.baseURL)event-sessions/\(currentSession.sessionCode)"
+            guard let url = URL(string: urlString) else {
+                print("❌ [SessionCodeManager] URL inválida")
+                return nil
+            }
+            
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
+                print("❌ [SessionCodeManager] Error al actualizar sesión: \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+                return nil
+            }
+            
+            // Decodificar respuesta
+            let sessionResponse = try JSONDecoder().decode(SessionCodeResponse.self, from: data)
+            
+            // Actualizar datos locales sin disparar notificaciones
+            updateTemporarySessionSilently(sessionResponse)
+            
+            print("✅ [SessionCodeManager] Datos de sesión actualizados correctamente")
+            return getTemporarySession()
+            
+        } catch {
+            print("❌ [SessionCodeManager] Error al actualizar sesión: \(error.localizedDescription)")
+            return nil
+        }
+    }
 }
+

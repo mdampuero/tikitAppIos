@@ -25,6 +25,7 @@ struct CheckinsView: View {
     @State private var showCategoryFilter = false
     @State private var selectedCategoryIds: Set<Int> = []
     @State private var allCategoriesSelected = true
+    @State private var showStatistics = false
     @State private var showLogoutConfirmation = false
     @State private var toastMessage: ToastMessage?
     @State private var showToast = false
@@ -229,7 +230,7 @@ struct CheckinsView: View {
                             .font(.system(size: 24, weight: .semibold))
                             .foregroundColor(.white)
                             .frame(width: 60, height: 60)
-                            .background(Color.brandPrimary)
+                            .background(Color.brandSecondary)
                             .clipShape(Circle())
                             .shadow(color: Color.black.opacity(0.3), radius: 8, x: 0, y: 4)
                     }
@@ -259,7 +260,13 @@ struct CheckinsView: View {
                     .buttonStyle(.plain)
                 }
             }
-            ToolbarItem(placement: .navigationBarTrailing) {
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                Button(action: { showStatistics = true }) {
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .foregroundColor(.white)
+                }
+                .buttonStyle(.plain)
+                
                 Button(action: { showCategoryFilter = true }) {
                     Image(systemName: "slider.horizontal.3")
                         .foregroundColor(.white)
@@ -281,6 +288,15 @@ struct CheckinsView: View {
                 selectedCategoryIds: $selectedCategoryIds,
                 allCategoriesSelected: $allCategoriesSelected,
                 sessionId: session.id
+            )
+        }
+        .sheet(isPresented: $showStatistics) {
+            SessionStatisticsView(
+                session: session,
+                eventName: eventName,
+                totalCheckins: totalCheckinsInSession,
+                totalRegistered: totalRegisteredInSession,
+                temporarySessionData: temporarySessionData
             )
         }
         .fullScreenCover(isPresented: $isShowingScanner) {

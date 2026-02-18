@@ -99,7 +99,7 @@ struct TemporarySessionView: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.brandPrimary)
+                    .background(Color.brandSecondary)
                     .cornerRadius(12)
                 }
                 .padding(.horizontal)

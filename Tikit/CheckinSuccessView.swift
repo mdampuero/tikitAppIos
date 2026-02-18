@@ -70,7 +70,7 @@ struct CheckinSuccessView: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color.blue)
+                    .background(Color.brandSecondary)
                     .cornerRadius(12)
             }
             .padding(24)
@@ -83,7 +83,7 @@ struct CheckinSuccessView: View {
         HStack(alignment: .top, spacing: 16) {
             Image(systemName: icon)
                 .font(.title2)
-                .foregroundColor(.blue)
+                .foregroundColor(.brandPrimary)
                 .frame(width: 30)
             
             VStack(alignment: .leading, spacing: 4) {

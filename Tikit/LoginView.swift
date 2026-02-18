@@ -32,6 +32,12 @@ struct LoginView: View {
         // case password
     }
 
+    private var appVersion: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
+        return "v\(version) (\(build))"
+    }
+
     var body: some View {
         ZStack {
             ScrollView {
@@ -147,13 +153,21 @@ struct LoginView: View {
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.brandPrimary)
+                            .background(Color.brandSecondary)
                             .clipShape(Capsule())
                         }
                         .padding(.top, 8)
                         .disabled(isLoading)
                     }
                     .padding(.horizontal, 40)
+                    .padding(.top, 24)
+                    
+                    // Información de versión
+                    VStack(spacing: 4) {
+                        Text(appVersion)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                     .padding(.top, 24)
                     
                     /* COMENTADO: Formulario de login tradicional
@@ -224,7 +238,7 @@ struct LoginView: View {
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(Color.brandPrimary)
+                            .background(Color.brandSecondary)
                             .clipShape(Capsule())
                         }
                         .padding(.top, 8)

@@ -116,7 +116,7 @@ struct CategoryFilterView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(localSelectedIds.isEmpty ? Color.gray : Color.brandPrimary)
+                    .background(localSelectedIds.isEmpty ? Color.gray : Color.brandSecondary)
                     .foregroundColor(.white)
                     .cornerRadius(10)
                     .disabled(localSelectedIds.isEmpty)
